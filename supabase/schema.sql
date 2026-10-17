@@ -109,13 +109,17 @@ create policy "members read schools" on public.schools for select to authenticat
 create policy "admins update schools" on public.schools for update to authenticated using(public.has_school_role(id,array['owner','admin'])) with check(public.has_school_role(id,array['owner','admin']));
 create policy "members read memberships" on public.school_memberships for select to authenticated using(public.is_school_member(school_id));
 create policy "admins manage memberships" on public.school_memberships for all to authenticated using(public.has_school_role(school_id,array['owner','admin'])) with check(public.has_school_role(school_id,array['owner','admin']));
-create policy "members read classes" on public.classes for select to authenticated using(public.is_school_member(school_id));
+create policy "admins read all classes; teachers read assigned classes" on public.classes for select to authenticated using(
+ public.has_school_role(school_id,array['owner','admin']) or exists(select 1 from public.class_teachers ct where ct.class_id=id and ct.user_id=auth.uid())
+);
 create policy "admins insert classes" on public.classes for insert to authenticated with check(public.has_school_role(school_id,array['owner','admin']));
 create policy "admins update classes" on public.classes for update to authenticated using(public.has_school_role(school_id,array['owner','admin'])) with check(public.has_school_role(school_id,array['owner','admin']));
 create policy "admins delete classes" on public.classes for delete to authenticated using(public.has_school_role(school_id,array['owner','admin']));
 create policy "members read class teachers" on public.class_teachers for select to authenticated using(exists(select 1 from public.classes c where c.id=class_id and public.is_school_member(c.school_id)));
 create policy "admins manage class teachers" on public.class_teachers for all to authenticated using(exists(select 1 from public.classes c where c.id=class_id and public.has_school_role(c.school_id,array['owner','admin']))) with check(exists(select 1 from public.classes c where c.id=class_id and public.has_school_role(c.school_id,array['owner','admin'])));
-create policy "members read students" on public.students for select to authenticated using(public.is_school_member(school_id));
+create policy "admins read all students; teachers read assigned classes only" on public.students for select to authenticated using(
+ public.has_school_role(school_id,array['owner','admin']) or exists(select 1 from public.class_teachers ct where ct.class_id=class_id and ct.user_id=auth.uid())
+);
 create policy "admins manage students" on public.students for all to authenticated using(public.has_school_role(school_id,array['owner','admin'])) with check(public.has_school_role(school_id,array['owner','admin']));
 create policy "members read assigned assessments" on public.assessments for select to authenticated using(created_by=auth.uid() or exists(select 1 from public.assessment_assignments aa where aa.assessment_id=id and public.is_school_member(aa.school_id)));
 create policy "creators insert assessments" on public.assessments for insert to authenticated with check(created_by=auth.uid());
@@ -123,6 +127,11 @@ create policy "creators update assessments" on public.assessments for update to 
 create policy "creators delete assessments" on public.assessments for delete to authenticated using(created_by=auth.uid());
 create policy "members read assignments" on public.assessment_assignments for select to authenticated using(public.is_school_member(school_id));
 create policy "admins manage assignments" on public.assessment_assignments for all to authenticated using(public.has_school_role(school_id,array['owner','admin'])) with check(public.has_school_role(school_id,array['owner','admin']));
-create policy "teachers read school attempts" on public.attempts for select to authenticated using(exists(select 1 from public.students s where s.id=student_id and public.is_school_member(s.school_id)));
+create policy "admins read school attempts; teachers read assigned classes only" on public.attempts for select to authenticated using(
+ exists(select 1 from public.students s where s.id=student_id and (
+  public.has_school_role(s.school_id,array['owner','admin']) or
+  exists(select 1 from public.class_teachers ct where ct.class_id=s.class_id and ct.user_id=auth.uid())
+ ))
+);
 -- Intentionally no public student-read policy and no direct insert/update policy on attempts.
 -- Use a validated server-side Edge Function for student login and result submission.
