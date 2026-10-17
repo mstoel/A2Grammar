@@ -149,4 +149,110 @@ using (
   )
 );
 
+-- A published rubric version is immutable. Create a new version for the next
+-- assignment instead of changing criteria that historical scores refer to.
+create or replace function public.guard_rubric_version_changes()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  if tg_op = 'DELETE' then
+    if exists (select 1 from public.assessments a where a.rubric_version_id = old.id)
+       or exists (select 1 from public.attempts t where t.rubric_version_id = old.id) then
+      raise exception 'A rubric version used by an assessment or attempt cannot be deleted';
+    end if;
+    return old;
+  end if;
+
+  if old.status = 'published' and (
+    new.rubric_id is distinct from old.rubric_id
+    or new.version_number is distinct from old.version_number
+    or new.title is distinct from old.title
+    or new.grading_scale is distinct from old.grading_scale
+    or new.status is distinct from old.status
+  ) then
+    raise exception 'Published rubric versions are immutable; create a new version';
+  end if;
+
+  if (exists (select 1 from public.assessments a where a.rubric_version_id = old.id)
+      or exists (select 1 from public.attempts t where t.rubric_version_id = old.id))
+     and tg_op = 'UPDATE' then
+    raise exception 'A rubric version already used by an assessment or attempt cannot be changed';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists guard_rubric_version_changes on public.rubric_versions;
+create trigger guard_rubric_version_changes
+before update or delete on public.rubric_versions
+for each row execute function public.guard_rubric_version_changes();
+
+create or replace function public.guard_rubric_criteria_changes()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+declare current_status text;
+begin
+  if tg_op = 'DELETE' then
+    select status into current_status from public.rubric_versions where id = old.rubric_version_id;
+    if current_status is distinct from 'draft' then
+      raise exception 'Criteria can only be deleted while their rubric version is a draft';
+    end if;
+    if exists (select 1 from public.attempt_criterion_scores s where s.rubric_criterion_id = old.id) then
+      raise exception 'A criterion with recorded scores cannot be deleted';
+    end if;
+    return old;
+  end if;
+
+  select status into current_status from public.rubric_versions where id = new.rubric_version_id;
+  if current_status is distinct from 'draft' then
+    raise exception 'Criteria can only be added or changed while their rubric version is a draft';
+  end if;
+  if tg_op = 'UPDATE' and old.rubric_version_id is distinct from new.rubric_version_id then
+    raise exception 'A criterion cannot be moved to another rubric version';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists guard_rubric_criteria_changes on public.rubric_criteria;
+create trigger guard_rubric_criteria_changes
+before insert or update or delete on public.rubric_criteria
+for each row execute function public.guard_rubric_criteria_changes();
+
+-- A version can only be published after it has at least one criterion and
+-- its weights total exactly 100 percent.
+create or replace function public.validate_rubric_publication()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+declare criterion_count integer;
+declare weight_total numeric;
+begin
+  if new.status = 'published' and (tg_op = 'INSERT' or old.status is distinct from 'published') then
+    select count(*), coalesce(sum(weight_percent), 0)
+      into criterion_count, weight_total
+      from public.rubric_criteria
+      where rubric_version_id = new.id;
+    if criterion_count = 0 then
+      raise exception 'A rubric needs at least one criterion before publication';
+    end if;
+    if weight_total <> 100 then
+      raise exception 'Rubric criterion weights must total exactly 100 percent (current total: %)', weight_total;
+    end if;
+    new.published_at := coalesce(new.published_at, now());
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists validate_rubric_publication on public.rubric_versions;
+create trigger validate_rubric_publication
+before insert or update of status on public.rubric_versions
+for each row execute function public.validate_rubric_publication();
+
 commit;
