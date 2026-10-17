@@ -1,0 +1,2 @@
+[functions.student-assessment]
+verify_jwt = false
