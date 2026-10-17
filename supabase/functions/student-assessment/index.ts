@@ -22,7 +22,7 @@ function safeQuestion(q: any) {
     id: String(q.id ?? ""),
     prompt: String(q.prompt ?? ""),
     points: Math.max(1, Number(q.points) || 1),
-    options: Array.isArray(q.options) ? q.options.map((o: any) => ({ text: String(o.text ?? "") })) : [],
+    options: Array.isArray(q.options) ? q.options.map((o: any, index: number) => ({ text: String(o.text ?? "").trim(), index })).filter((o: any) => o.text.length > 0) : [],
   };
 }
 function inWindow(a: any) {
@@ -124,6 +124,17 @@ Deno.serve(async (req) => {
       const data = assessment.assessment_data || {};
       const questions = Array.isArray(data.questions) ? data.questions : [];
       if (!questions.length) return json({ error: "This assessment has no questions." }, 422);
+      if (questions.length > 500) return json({ error: "This assessment is too large to deliver." }, 422);
+      const seenQuestionIds = new Set<string>();
+      for (const q of questions) {
+        const id = String(q?.id ?? "");
+        const opts = Array.isArray(q?.options) ? q.options.filter((o: any) => String(o?.text ?? "").trim().length > 0) : [];
+        const correct = Array.isArray(q?.options) ? q.options.filter((o: any) => o?.correct === true && String(o?.text ?? "").trim().length > 0) : [];
+        if (!id || seenQuestionIds.has(id) || !String(q?.prompt ?? "").trim() || opts.length < 2 || correct.length !== 1) {
+          return json({ error: "This assessment contains an invalid question. Ask your teacher to review it." }, 422);
+        }
+        seenQuestionIds.add(id);
+      }
 
       if (action === "start") {
         return json({
@@ -137,14 +148,15 @@ Deno.serve(async (req) => {
 
       const answers = body.answers;
       if (!answers || typeof answers !== "object" || Array.isArray(answers)) return json({ error: "Submit answers as a question-ID to option-index map." }, 400);
-      if (questions.length > 500) return json({ error: "This assessment is too large to score." }, 422);
       let possible = 0, earned = 0, correctCount = 0, answeredCount = 0;
       const answerDetails = questions.map((q: any) => {
         const points = Math.max(1, Number(q.points) || 1);
         possible += points;
-        const chosen = Number(answers[String(q.id)]);
-        const valid = Number.isInteger(chosen) && chosen >= 0 && chosen < (Array.isArray(q.options) ? q.options.length : 0);
-        const correctIndex = Array.isArray(q.options) ? q.options.findIndex((o: any) => o.correct === true) : -1;
+        const rawChosen = Object.prototype.hasOwnProperty.call(answers, String(q.id)) ? answers[String(q.id)] : null;
+        const chosen = typeof rawChosen === "number" ? rawChosen : (typeof rawChosen === "string" && rawChosen.trim() !== "" ? Number(rawChosen) : NaN);
+        const nonblankOptions = Array.isArray(q.options) ? q.options.map((o: any, index: number) => ({ o, index })).filter((x: any) => String(x.o?.text ?? "").trim().length > 0) : [];
+        const valid = Number.isInteger(chosen) && nonblankOptions.some((x: any) => x.index === chosen);
+        const correctIndex = Array.isArray(q.options) ? q.options.findIndex((o: any) => o.correct === true && String(o.text ?? "").trim().length > 0) : -1;
         const isCorrect = valid && correctIndex >= 0 && chosen === correctIndex;
         if (valid) answeredCount++;
         if (isCorrect) { correctCount++; earned += points; }
@@ -166,11 +178,11 @@ Deno.serve(async (req) => {
         });
         if (error) throw error;
       }
-      const feedback = data.feedback === "none" ? null : answerDetails.map((a: any, i: number) => ({
+      const feedback = data.feedback === "explanations" ? answerDetails.map((a: any, i: number) => ({
         questionId: a.questionId, correct: a.correct,
         correctOption: questions[i]?.options?.find((o: any) => o.correct === true)?.text || "",
         explanation: questions[i]?.explanation || "",
-      }));
+      })) : null;
       return json({ scorePercent: percent, correctCount, questionsAnswered: answeredCount, totalQuestions: questions.length, possiblePoints: possible, earnedPoints: earned, feedback: feedback });
     }
 
