@@ -118,7 +118,7 @@ create policy "admins delete classes" on public.classes for delete to authentica
 create policy "members read class teachers" on public.class_teachers for select to authenticated using(exists(select 1 from public.classes c where c.id=class_id and public.is_school_member(c.school_id)));
 create policy "admins manage class teachers" on public.class_teachers for all to authenticated using(exists(select 1 from public.classes c where c.id=class_id and public.has_school_role(c.school_id,array['owner','admin']))) with check(exists(select 1 from public.classes c where c.id=class_id and public.has_school_role(c.school_id,array['owner','admin'])));
 create policy "admins read all students; teachers read assigned classes only" on public.students for select to authenticated using(
- public.has_school_role(school_id,array['owner','admin']) or exists(select 1 from public.class_teachers ct where ct.class_id=class_id and ct.user_id=auth.uid())
+ public.has_school_role(students.school_id,array['owner','admin']) or exists(select 1 from public.class_teachers ct where ct.class_id=students.class_id and ct.user_id=auth.uid())
 );
 create policy "admins manage students" on public.students for all to authenticated using(public.has_school_role(school_id,array['owner','admin'])) with check(public.has_school_role(school_id,array['owner','admin']));
 create policy "members read assigned assessments" on public.assessments for select to authenticated using(created_by=auth.uid() or exists(select 1 from public.assessment_assignments aa where aa.assessment_id=id and public.is_school_member(aa.school_id)));
