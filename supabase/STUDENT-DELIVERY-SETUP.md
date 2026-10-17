@@ -32,7 +32,8 @@ Publish the repository's GitHub Pages site after review. Open `student-portal.ht
 ## 4. How this first release behaves
 
 - Only active, published assessments assigned to the student's active class and currently inside their open/close window are listed.
-- Multiple-choice questions are delivered without correct-answer flags or explanations. The server calculates the score.
+- Multiple-choice questions are delivered without correct-answer flags or explanations. Blank answer options are omitted while original option indexes are preserved for scoring. The server validates question IDs, non-empty options, and exactly one non-empty correct option before serving or scoring a test.
+- `score` feedback returns the overall score only; `explanations` returns correct answers and explanations; `none` returns no score/answer feedback in the test result. The backend does not reveal correct answers for score-only assessments.
 - `identified` results are written to `attempts` and linked to the student.
 - `anonymous` results are written to `anonymous_assessment_results`, which contains no student/session identifier.
 - `none` calculates and returns a score but does not save an outcome.
@@ -43,4 +44,4 @@ Publish the repository's GitHub Pages site after review. Open `student-portal.ht
 
 This is an initial integration, not a fully proctored exam system. The first version does not yet enforce the configured per-test timer, attempt limits, draft autosave, or a teacher-controlled results release date. It does not prevent students from using another device. Do not use it for high-stakes or controlled exams until those protections and the student flow have been tested with test accounts.
 
-After deploying, test with a disposable school, class, student, and low-stakes published multiple-choice assessment. Verify login, assigned test visibility, server-side scoring, each result-storage mode, logout/revocation, and access denial for an unassigned test before inviting students.
+After deploying, test with a disposable school, class, student, and low-stakes published multiple-choice assessment. Verify login, assigned test visibility, server-side scoring, score-only versus explanation feedback, each result-storage mode, logout/revocation, and access denial for an unassigned test before inviting students. Include a test question with an intentionally blank option to confirm that the student UI hides it and scoring still matches the intended answer.
