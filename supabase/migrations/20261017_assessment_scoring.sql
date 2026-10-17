@@ -233,18 +233,20 @@ as $
 declare criterion_count integer;
 declare weight_total numeric;
 begin
-  if new.status = 'published' and (tg_op = 'INSERT' or old.status is distinct from 'published') then
-    select count(*), coalesce(sum(weight_percent), 0)
-      into criterion_count, weight_total
-      from public.rubric_criteria
-      where rubric_version_id = new.id;
-    if criterion_count = 0 then
-      raise exception 'A rubric needs at least one criterion before publication';
+  if new.status = 'published' then
+    if tg_op = 'INSERT' or old.status is distinct from 'published' then
+      select count(*), coalesce(sum(weight_percent), 0)
+        into criterion_count, weight_total
+        from public.rubric_criteria
+        where rubric_version_id = new.id;
+      if criterion_count = 0 then
+        raise exception 'A rubric needs at least one criterion before publication';
+      end if;
+      if weight_total <> 100 then
+        raise exception 'Rubric criterion weights must total exactly 100 percent (current total: %)', weight_total;
+      end if;
+      new.published_at := coalesce(new.published_at, now());
     end if;
-    if weight_total <> 100 then
-      raise exception 'Rubric criterion weights must total exactly 100 percent (current total: %)', weight_total;
-    end if;
-    new.published_at := coalesce(new.published_at, now());
   end if;
   return new;
 end;
