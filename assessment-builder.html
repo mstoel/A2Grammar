@@ -102,6 +102,27 @@ async function loadCloudAssessments(showAlert=true){if(!supabaseClient||!cloudUs
 $('connectBtn').onclick=()=>connectCloud(true);$('forgetConfigBtn').onclick=()=>{localStorage.removeItem(CLOUD_CONFIG_KEY);$('supabaseUrl').value='';$('supabaseKey').value='';supabaseClient=null;cloudUser=null;$('cloudList').innerHTML='';cloudMessage('Saved settings removed from this browser.',false)};$('signInBtn').onclick=signInCloud;$('signUpBtn').onclick=signUpCloud;$('signOutBtn').onclick=signOutCloud;$('cloudSaveBtn').onclick=saveCloudAssessment;$('cloudLoadBtn').onclick=()=>loadCloudAssessments(true);
 const savedCloudConfig=readCloudConfig();if(savedCloudConfig.url)$('supabaseUrl').value=savedCloudConfig.url;if(savedCloudConfig.key)$('supabaseKey').value=savedCloudConfig.key;
 
+async function openRequestedCloudAssessment(){
+ const openId=sessionStorage.getItem('sap_open_cloud_assessment');
+ const duplicateRaw=sessionStorage.getItem('sap_duplicate_cloud_assessment');
+ if(!openId&&!duplicateRaw)return;
+ if(duplicateRaw){
+  sessionStorage.removeItem('sap_duplicate_cloud_assessment');
+  try{const a=JSON.parse(duplicateRaw);a.id=null;a.title=(a.title||'Untitled assessment')+' (Copy)';fill(a);$('editor').classList.remove('hidden');$('preview').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});return}catch(e){alert('Could not open the copied assessment.');return}
+ }
+ sessionStorage.removeItem('sap_open_cloud_assessment');
+ try{
+  if(!savedCloudConfig.url||!savedCloudConfig.key){alert('Connect to Supabase first.');return}
+  const ok=await connectCloud(false);if(!ok)return;
+  if(!cloudUser){alert('Please sign in, then open the assessment again from the library.');return}
+  const {data,error}=await supabaseClient.from('assessments').select('id,title,assessment_data,created_by').eq('id',openId).eq('created_by',cloudUser.id).maybeSingle();
+  if(error)throw error;if(!data||!data.assessment_data){alert('Assessment not found or you do not have permission to open it.');return}
+  fill(Object.assign({},data.assessment_data,{id:data.id}));$('editor').classList.remove('hidden');$('preview').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});
+ }catch(e){alert('Could not open cloud assessment: '+e.message)}
+}
+openRequestedCloudAssessment();
+
+
 </script>
 </body>
 </html>
