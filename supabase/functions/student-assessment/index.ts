@@ -77,6 +77,56 @@ Deno.serve(async (req) => {
     }
     await db.from("student_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
 
+    if (action === "submit-diagnostic") {
+      const report = body.report;
+      if (!report || typeof report !== "object" || Array.isArray(report)) return json({ error: "Missing diagnostic report." }, 400);
+      const serialized = JSON.stringify(report);
+      if (serialized.length > 500000) return json({ error: "The report is too large to save." }, 413);
+      const score = report.score || {};
+      const percent = Number(score.percent);
+      const questions = Number(score.questionsAnswered);
+      const correct = Number(score.correct);
+      const passed = Number(score.skillsPassedOrSecure);
+      const extended = Number(score.skillsExtended);
+      const completedAt = Date.parse(String(report.completedAt || ""));
+      if (!Number.isFinite(percent) || percent < 0 || percent > 100 ||
+          !Number.isInteger(questions) || questions < 0 || questions > 500 ||
+          !Number.isInteger(correct) || correct < 0 || correct > questions ||
+          !Number.isInteger(passed) || passed < 0 || passed > 25 ||
+          !Number.isInteger(extended) || extended < 0 || extended > 25 ||
+          !Number.isFinite(completedAt)) {
+        return json({ error: "The diagnostic report has invalid score data." }, 400);
+      }
+      // Identity comes from the validated session, never from student-supplied report fields.
+      const safeReport = {
+        schemaVersion: Number(report.schemaVersion) || 1,
+        testName: "A2 Adaptive Grammar Diagnostic",
+        completedAt: new Date(completedAt).toISOString(),
+        student: {
+          className: String(session.students.class_id || ""),
+          studentCode: String(session.students.student_code || ""),
+          studentName: String(session.students.display_name || session.students.student_code || ""),
+        },
+        score: { questionsAnswered: questions, correct, percent, skillsPassedOrSecure: passed, skillsExtended: extended },
+        skills: Array.isArray(report.skills) ? report.skills.slice(0, 25) : [],
+        answers: Array.isArray(report.answers) ? report.answers.slice(0, 500) : [],
+      };
+      const { data: saved, error: saveErr } = await db.from("diagnostic_results").insert({
+        school_id: session.school_id,
+        student_id: session.student_id,
+        diagnostic_key: "a2-adaptive-grammar-v1",
+        completed_at: safeReport.completedAt,
+        overall_percent: percent,
+        questions_answered: questions,
+        correct_count: correct,
+        skills_passed_or_secure: passed,
+        skills_extended: extended,
+        report: safeReport,
+      }).select("id,completed_at").single();
+      if (saveErr) throw saveErr;
+      return json({ ok: true, resultId: saved.id, completedAt: saved.completed_at });
+    }
+
     if (action === "logout") {
       const { error } = await db.from("student_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", session.id);
       if (error) throw error;
