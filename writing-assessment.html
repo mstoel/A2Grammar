@@ -39,7 +39,7 @@ function buildReportText(){
  document.querySelectorAll('.rubricScore').forEach(el=>scores[el.dataset.key]=Math.min(Number(el.max)||0,Math.max(0,Number(el.value)||0)));
  const totalScore=Object.values(scores).reduce((n,v)=>n+v,0),max=criteria.reduce((n,x)=>n+Number(x.max),0);
  const lines=['WRITING ASSESSMENT REPORT','Student: '+student,'Assignment: '+assignment,'Score: '+totalScore+'/'+max,'','RUBRIC SCORES',...criteria.map(cr=>cr.name+': '+(scores[scoreKey(cr.name)]??0)+'/'+cr.max),'','TEACHER FEEDBACK',$('feedback').value.trim()||'No teacher feedback added.'];
- if(lastAIReport){for(const k of ['strengths','improvements','grammarCorrections','vocabularySuggestions']){const v=lastAIReport[k];if(v){lines.push('',k.replace(/([A-Z])/g,' $1').toUpperCase()+':',Array.isArray(v)?v.map(x=>typeof x==='string'?x:JSON.stringify(x)).join('\n'):typeof v==='string'?v:JSON.stringify(v));}}if(lastAIReport.caveats)lines.push('Review notes: '+lastAIReport.caveats);}
+ if(lastAIReport){if(Array.isArray(lastAIReport.criteria)&&lastAIReport.criteria.length){lines.push('','AI RUBRIC EVIDENCE');for(const item of lastAIReport.criteria){lines.push(item.name+': '+item.score+'/'+item.max);if(item.evidence)lines.push('Evidence: '+item.evidence);if(item.suggestion)lines.push('Suggestion: '+item.suggestion);}}for(const k of ['strengths','improvements','grammarCorrections','vocabularySuggestions']){const v=lastAIReport[k];if(v){lines.push('',k.replace(/([A-Z])/g,' $1').toUpperCase()+':',Array.isArray(v)?v.map(x=>typeof x==='string'?x:JSON.stringify(x)).join('\n'):typeof v==='string'?v:JSON.stringify(v));}}if(lastAIReport.caveats)lines.push('Review notes: '+lastAIReport.caveats);}
  lines.push('','This report is intended for teacher review.');
  return lines.join('\n');
 }
