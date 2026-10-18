@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     if (!token || token.length < 40) return json({ error: "Please sign in again." }, 401);
     const tokenHash = await sha256(token);
     const { data: session, error: sessionErr } = await db.from("student_sessions")
-      .select("id,student_id,school_id,expires_at,revoked_at,students(id,class_id,student_code,display_name,is_active)")
+      .select("id,student_id,school_id,expires_at,revoked_at,students(id,class_id,student_code,display_name,is_active,classes(name))")
       .eq("token_hash", tokenHash).maybeSingle();
     if (sessionErr) throw sessionErr;
     if (!session || session.revoked_at || Date.parse(session.expires_at) <= Date.now() || !session.students?.is_active) {
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
     if (action === "writing-list") {
       const { data: assignments, error } = await db.from("writing_assignments")
-        .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status")
+        .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status,classes(name)")
         .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
         .select("id,assignment_id,draft_text,status,submitted_at,updated_at")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
-      return json({ assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()), submissions: submissions || [] });
+      return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.classes?.name || session.students.classes?.name || "" })), submissions: submissions || [] });
     }
 
     if (action === "writing-save" || action === "writing-submit") {
