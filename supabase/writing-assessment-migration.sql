@@ -41,7 +41,7 @@ create index if not exists writing_submissions_school_assignment_idx on public.w
 alter table public.writing_assignments enable row level security;
 alter table public.writing_submissions enable row level security;
 revoke all on public.writing_assignments from anon, authenticated;
-revoke all on public.writing_submissions from anon, authenticated;
+revoke all on public.writing_submissions from anon, authenticated;\ngrant select, insert, update on public.writing_assignments to authenticated;\ngrant select, update on public.writing_submissions to authenticated;
 drop policy if exists "Teachers manage their school's writing assignments" on public.writing_assignments;
 create policy "Teachers manage their school's writing assignments" on public.writing_assignments
 for all to authenticated using (
