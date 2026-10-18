@@ -102,7 +102,6 @@ Deno.serve(async (req) => {
       if (aErr) throw aErr;
       if (!assignment || (assignment.due_at && Date.parse(assignment.due_at) <= Date.now())) return json({ error: "This writing assignment is no longer available." }, 403);
       const words = textValue.trim() ? textValue.trim().split(/\\s+/).length : 0;
-      if (action === "writing-submit" && words < Number(assignment.min_words || 0)) return json({ error: "Please write at least " + assignment.min_words + " words before submitting." }, 400);
       if (assignment.max_words && words > assignment.max_words) return json({ error: "Please reduce your writing to " + assignment.max_words + " words or fewer." }, 400);
       const { data: existing, error: existingErr } = await db.from("writing_submissions")
         .select("id,status").eq("assignment_id", assignmentId).eq("student_id", session.student_id).maybeSingle();
