@@ -15,9 +15,9 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
   if (!url || !anonKey || !serviceKey) return json({ error: "Supabase function configuration is incomplete." }, 500);
-  if (!openaiKey) return json({ error: "AI marking is not configured yet. The administrator must add the OPENAI_API_KEY secret and redeploy this function." }, 503);
+  if (!geminiKey) return json({ error: "AI marking is not configured yet. The administrator must add the GEMINI_API_KEY secret and redeploy this function." }, 503);
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
@@ -86,17 +86,35 @@ Deno.serve(async (req) => {
       essay
     };
 
-    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Convert the existing JSON Schema to Gemini's responseSchema format.
+    const toGeminiSchema = (node: any): any => {
+      const out: any = {};
+      if (node.type) out.type = String(node.type).toUpperCase();
+      if (node.description) out.description = node.description;
+      if (node.properties) {
+        out.properties = {};
+        for (const [key, value] of Object.entries(node.properties)) out.properties[key] = toGeminiSchema(value);
+      }
+      if (node.items) out.items = toGeminiSchema(node.items);
+      if (node.required) out.required = node.required;
+      return out;
+    };
+    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
       method: "POST",
-      headers: { "Authorization": "Bearer " + openaiKey, "Content-Type": "application/json" },
+      headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.2,
-        response_format: { type: "json_schema", json_schema: { name: "writing_assessment", strict: true, schema } },
-        messages: [
-          { role: "system", content: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language." },
-          { role: "user", content: "Assess this essay using this JSON data only:\n" + JSON.stringify(promptData) }
-        ]
+        systemInstruction: {
+          parts: [{ text: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language." }]
+        },
+        contents: [{
+          role: "user",
+          parts: [{ text: "Assess this essay using this JSON data only:\\n" + JSON.stringify(promptData) }]
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+          responseSchema: toGeminiSchema(schema)
+        }
       })
     });
     const aiJson = await aiResponse.json().catch(() => ({}));
@@ -104,8 +122,8 @@ Deno.serve(async (req) => {
       const message = aiJson?.error?.message || "The AI provider could not assess this essay.";
       return json({ error: message }, 502);
     }
-    const raw = aiJson?.choices?.[0]?.message?.content;
-    if (!raw) return json({ error: "The AI returned an empty assessment." }, 502);
+    const raw = aiJson?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("");
+    if (!raw) return json({ error: aiJson?.promptFeedback?.blockReason || "The AI returned an empty assessment." }, 502);
     const draft = JSON.parse(raw);
     const criteria = rubric.map((cr: any) => {
       const found = (draft.criteria || []).find((item: any) => String(item.name).trim().toLowerCase() === String(cr.name).trim().toLowerCase());
