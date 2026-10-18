@@ -77,6 +77,50 @@ Deno.serve(async (req) => {
     }
     await db.from("student_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
 
+    if (action === "writing-list") {
+      const { data: assignments, error } = await db.from("writing_assignments")
+        .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status")
+        .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const { data: submissions, error: subErr } = await db.from("writing_submissions")
+        .select("id,assignment_id,draft_text,status,submitted_at,updated_at")
+        .eq("student_id", session.student_id);
+      if (subErr) throw subErr;
+      return json({ assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()), submissions: submissions || [] });
+    }
+
+    if (action === "writing-save" || action === "writing-submit") {
+      const assignmentId = String(body.assignmentId || "");
+      const textValue = String(body.text || "");
+      if (!assignmentId) return json({ error: "Missing writing assignment." }, 400);
+      if (textValue.length > 100000) return json({ error: "Your writing is too long to save in one submission." }, 413);
+      const { data: assignment, error: aErr } = await db.from("writing_assignments")
+        .select("id,school_id,class_id,status,min_words,max_words,due_at")
+        .eq("id", assignmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id)
+        .eq("status", "published").maybeSingle();
+      if (aErr) throw aErr;
+      if (!assignment || (assignment.due_at && Date.parse(assignment.due_at) <= Date.now())) return json({ error: "This writing assignment is no longer available." }, 403);
+      const words = textValue.trim() ? textValue.trim().split(/\\s+/).length : 0;
+      if (action === "writing-submit" && words < Number(assignment.min_words || 0)) return json({ error: "Please write at least " + assignment.min_words + " words before submitting." }, 400);
+      if (assignment.max_words && words > assignment.max_words) return json({ error: "Please reduce your writing to " + assignment.max_words + " words or fewer." }, 400);
+      const { data: existing, error: existingErr } = await db.from("writing_submissions")
+        .select("id,status").eq("assignment_id", assignmentId).eq("student_id", session.student_id).maybeSingle();
+      if (existingErr) throw existingErr;
+      if (existing?.status === "submitted") return json({ error: "This essay has already been submitted and is locked." }, 409);
+      const now = new Date().toISOString();
+      const values: any = {
+        assignment_id: assignmentId, school_id: session.school_id, class_id: session.students.class_id,
+        student_id: session.student_id, draft_text: textValue, word_count: words,
+        status: action === "writing-submit" ? "submitted" : "draft", updated_at: now,
+      };
+      if (action === "writing-submit") { values.submitted_text = textValue; values.submitted_at = now; }
+      const { data: saved, error: saveErr } = await db.from("writing_submissions")
+        .upsert(values, { onConflict: "assignment_id,student_id" }).select("id,status,word_count,updated_at,submitted_at").single();
+      if (saveErr) throw saveErr;
+      return json({ ok: true, submission: saved });
+    }
+
     if (action === "submit-diagnostic") {
       const report = body.report;
       if (!report || typeof report !== "object" || Array.isArray(report)) return json({ error: "Missing diagnostic report." }, 400);
