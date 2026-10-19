@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
       const assessmentIds = assigned.map((a: any) => a.id);
       let attempts: any[] = [];
       if (assessmentIds.length) {
-        const { data, error } = await db.from("attempts").select("assessment_id,score_percent,completed_at")
+        const { data, error } = await db.from("attempts").select("id,assessment_id,score_percent,completed_at,correct_count,questions_answered,result")
           .eq("student_id", session.student_id).in("assessment_id", assessmentIds).order("completed_at", { ascending: false });
         if (error) throw error;
         attempts = data || [];
@@ -220,13 +220,13 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       if (writingErr) throw writingErr;
       const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions")
-        .select("assignment_id,status,submitted_at,teacher_scores,ai_review")
+        .select("assignment_id,status,submitted_at,teacher_scores,teacher_feedback,submitted_text,ai_review")
         .eq("student_id", session.student_id);
       if (writingSubErr) throw writingSubErr;
       const subById = new Map((writingSubs || []).map((x: any) => [x.assignment_id, x]));
       const assessmentItems = assigned.map((a: any) => {
         const attempt = completedById.get(a.id);
-        return { id: a.id, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null };
+        return { id: a.id, resultId: attempt?.id || null, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null };
       });
       const writingItems = (writingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => {
         const sub: any = subById.get(a.id);
@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
         const total = Number.isFinite(Number(scores.total)) ? Number(scores.total) : null;
         const max = Number.isFinite(Number(scores.max)) && Number(scores.max) > 0 ? Number(scores.max) : 100;
         const score = total !== null ? Math.round(Math.max(0, Math.min(100, total / max * 100))) : null;
-        return { id: a.id, title: a.title, kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), submitted: ["submitted","reviewed"].includes(sub?.status), score, status: sub?.status || "not-started", completedAt: sub?.submitted_at || null };
+        return { id: a.id, title: a.title, kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), submitted: ["submitted","reviewed"].includes(sub?.status), score, status: sub?.status || "not-started", completedAt: sub?.submitted_at || null, reviewed: sub?.status === "reviewed" };
       });
       const { data: diagnosticRows, error: diagnosticErr } = await db.from("diagnostic_results")
         .select("id,completed_at,overall_percent,diagnostic_key,report")
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
         .order("completed_at", { ascending: false });
       if (diagnosticErr) throw diagnosticErr;
       const diagnostics = (diagnosticRows || []).map((r: any) => ({
-        id: r.id, title: r.report?.testName || (r.diagnostic_key === "a2-adaptive-grammar-v1" ? "A2 Grammar Diagnostic" : "Grammar Diagnostic"),
+        id: r.id, resultId: r.id, title: r.report?.testName || (r.diagnostic_key === "a2-adaptive-grammar-v1" ? "A2 Grammar Diagnostic" : "Grammar Diagnostic"),
         kind: "Grammar diagnostic", completed: true, score: Number(r.overall_percent), completedAt: r.completed_at,
         description: "Completed diagnostic"
       }));
