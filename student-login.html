@@ -58,7 +58,7 @@ function dashboardStatus(message,kind=''){const e=$('dashboardStatus');if(!e){sh
 function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function taskCard(a,completed=false){
  const score=Number.isFinite(Number(a.score))&&a.score!==null?Math.max(0,Math.min(100,Number(a.score))):null;
- const href=a.kind==='Writing'?'writing-student.html':a.kind==='Grammar diagnostic'?'student-diagnostic.html':'student-portal.html';
+ const href=a.kind==='Writing'?'writing-student.html?assignmentId='+encodeURIComponent(a.id):completed&&a.resultId?'student-result.html?type='+(a.kind==='Grammar diagnostic'?'diagnostic':'attempt')+'&id='+encodeURIComponent(a.resultId):a.kind==='Grammar diagnostic'?'student-diagnostic.html':'student-portal.html';
  const label=completed?(score===null?'Submitted · awaiting score':score+'%'):(a.supported===false&&a.kind!=='Writing'?'Not available yet':'Not started');
  return '<article class="task"><div class="task-head"><div><h3>'+esc(a.title)+'</h3><p>'+esc(a.description||a.kind||'Assignment')+'</p></div><span class="tag">'+esc(label)+'</span></div>'+(completed&&score!==null?'<div class="scorebar" role="img" aria-label="Score '+score+' percent"><span style="width:'+score+'%"></span></div><p>'+score+'% score'+(a.completedAt?' · Completed '+new Date(a.completedAt).toLocaleDateString():'')+'</p>':'')+'<div style="margin-top:10px"><a href="'+href+'" style="color:#4338ca;font-weight:700;text-decoration:none">'+(completed?'View work':'Open assignment')+' →</a></div></article>'
 }
