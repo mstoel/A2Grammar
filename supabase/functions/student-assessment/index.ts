@@ -88,15 +88,16 @@ Deno.serve(async (req) => {
 
     if (action === "writing-list") {
       const { data: assignments, error } = await db.from("writing_assignments")
-        .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status,classes(name)")
-        .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
+        .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status,is_open_test,class_id,classes(name)")
+        .eq("school_id", session.school_id).eq("status", "published")
+        .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true")
         .order("created_at", { ascending: false });
       if (error) throw error;
       const { data: submissions, error: subErr } = await db.from("writing_submissions")
         .select("id,assignment_id,draft_text,submitted_text,status,submitted_at,updated_at,teacher_scores,teacher_feedback")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
-      return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.classes?.name || session.students.classes?.name || "" })), submissions: submissions || [] });
+      return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.is_open_test ? "Open Test" : (a.classes?.name || session.students.classes?.name || "") })), submissions: submissions || [] });
     }
 
     if (action === "writing-save" || action === "writing-submit") {
@@ -105,9 +106,10 @@ Deno.serve(async (req) => {
       if (!assignmentId) return json({ error: "Missing writing assignment." }, 400);
       if (textValue.length > 100000) return json({ error: "Your writing is too long to save in one submission." }, 413);
       const { data: assignment, error: aErr } = await db.from("writing_assignments")
-        .select("id,school_id,class_id,status,min_words,max_words,due_at")
-        .eq("id", assignmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id)
-        .eq("status", "published").maybeSingle();
+        .select("id,school_id,class_id,is_open_test,status,min_words,max_words,due_at")
+        .eq("id", assignmentId).eq("school_id", session.school_id)
+        .eq("status", "published")
+        .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true").maybeSingle();
       if (aErr) throw aErr;
       if (!assignment || (assignment.due_at && Date.parse(assignment.due_at) <= Date.now())) return json({ error: "This writing assignment is no longer available." }, 403);
       const words = textValue.trim() ? textValue.trim().split(/\s+/).length : 0;

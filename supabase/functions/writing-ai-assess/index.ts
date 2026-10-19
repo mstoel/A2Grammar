@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
     const aiSettings = assignment?.rubric?.aiSettings || {};
     const requestedParts = Array.isArray(aiSettings.reportContents) ? aiSettings.reportContents : ["strengths", "improvements", "grammar", "vocabulary"];
     const language = String(aiSettings.language || "English");
+    const targetCefr = String(assignment?.rubric?.targetCefr || "A2").toUpperCase();
     const instructions = String(aiSettings.instructions || "Use only the supplied rubric. Provide evidence from the essay and do not invent evidence.");
 
     const schema = {
@@ -76,6 +77,8 @@ Deno.serve(async (req) => {
       assignmentTitle: assignment?.title || "Writing assignment",
       assignmentPrompt: assignment?.prompt || "",
       assignmentInstructions: assignment?.instructions || "",
+      targetCefr,
+      feedbackLanguageLevel: "Write all student-facing feedback at the same CEFR level as the task. A1: very short sentences, common words, one simple idea at a time, and clear examples. A2: simple, direct sentences and familiar vocabulary. B1: clear everyday English with some explanation and useful linking words. B2: more detailed, precise explanations and a wider range of vocabulary, while staying clear. C1: nuanced, precise explanations and more advanced language. Do not use language above the target level just to sound professional.",
       targetLength: { minimum: Number(assignment?.min_words) || 0, maximum: Number(assignment?.max_words) || 0 },
       wordCount: Number(submission.word_count) || essay.trim().split(/\s+/).length,
       rubric,
@@ -104,7 +107,7 @@ Deno.serve(async (req) => {
       headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language." }]
+          parts: [{ text: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level." }]
         },
         contents: [{
           role: "user",
