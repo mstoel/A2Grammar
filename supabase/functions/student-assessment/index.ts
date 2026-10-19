@@ -29,6 +29,15 @@ function inWindow(a: any) {
   const now = Date.now();
   return (!a.opens_at || Date.parse(a.opens_at) <= now) && (!a.closes_at || Date.parse(a.closes_at) > now);
 }
+function notClosed(a: any) {
+  return !a.closes_at || Date.parse(a.closes_at) > Date.now();
+}
+function availability(a: any) {
+  const now = Date.now();
+  if (a.opens_at && Date.parse(a.opens_at) > now) return { available: false, opensAt: a.opens_at, availabilityLabel: "Opens " + new Date(a.opens_at).toISOString() };
+  if (a.closes_at && Date.parse(a.closes_at) <= now) return { available: false, opensAt: a.opens_at || null, availabilityLabel: "Closed" };
+  return { available: true, opensAt: a.opens_at || null, availabilityLabel: "Available now" };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -202,7 +211,7 @@ Deno.serve(async (req) => {
         .eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true);
       if (assignedErr) throw assignedErr;
       const assigned = (assignedRows || []).map((x: any) => x.assessments).filter((a: any) =>
-        a && a.is_active && a.is_published && inWindow(a)
+        a && a.is_active && a.is_published && notClosed(a)
       );
       const assessmentIds = assigned.map((a: any) => a.id);
       let attempts: any[] = [];
@@ -226,7 +235,7 @@ Deno.serve(async (req) => {
       const subById = new Map((writingSubs || []).map((x: any) => [x.assignment_id, x]));
       const assessmentItems = assigned.map((a: any) => {
         const attempt = completedById.get(a.id);
-        return { id: a.id, resultId: attempt?.id || null, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null };
+        return { id: a.id, resultId: attempt?.id || null, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null, ...availability(a) };
       });
       const writingItems = (writingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => {
         const sub: any = subById.get(a.id);
@@ -257,13 +266,13 @@ Deno.serve(async (req) => {
         .eq("classes.is_active", true);
       if (error) throw error;
       const items = (assignments || []).map((x: any) => x.assessments).filter((a: any) =>
-        a && a.is_active && a.is_published && inWindow(a)
+        a && a.is_active && a.is_published && notClosed(a)
       ).map((a: any) => ({
         id: a.id, title: a.title, description: a.description, engineKey: a.engine_key,
         kind: a.engine_key === "mc-assessment-builder-v1" ? "multiple-choice" :
           a.engine_key === "essay-rubric-v1" ? "essay-rubric" :
           a.engine_key === "a2-adaptive-grammar-v1" ? "adaptive-diagnostic" : "other",
-        supported: a.engine_key === "mc-assessment-builder-v1",
+        supported: a.engine_key === "mc-assessment-builder-v1", ...availability(a),
       }));
       return json({ student: session.students.display_name || session.students.student_code, assessments: items });
     }
