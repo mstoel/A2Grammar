@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
       additionalProperties: false,
       properties: {
         criteria: { type: "array", items: { type: "object", additionalProperties: false, properties: {
-          name: { type: "string" }, score: { type: "number" }, max: { type: "number" },
+          rubricIndex: { type: "integer" }, name: { type: "string" }, score: { type: "number" }, max: { type: "number" },
           evidence: { type: "string" }, suggestion: { type: "string" }
-        }, required: ["name", "score", "max", "evidence", "suggestion"] } },
+        }, required: ["rubricIndex", "name", "score", "max", "evidence", "suggestion"] } },
         feedback: { type: "string" }, strengths: { type: "array", items: { type: "string" } },
         improvements: { type: "array", items: { type: "string" } }, grammarCorrections: { type: "array", items: { type: "string" } },
         vocabularySuggestions: { type: "array", items: { type: "string" } }, caveats: { type: "string" }
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level." }]
+          parts: [{ text: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Return exactly one criterion for each rubric criterion, in the exact same order. Set rubricIndex to the zero-based position of that criterion in the supplied rubric (first criterion is 0), copy its name and maximum exactly, and never merge, rename, omit, or reorder criteria. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level." }]
         },
         contents: [{
           role: "user",
@@ -145,6 +145,9 @@ Deno.serve(async (req) => {
       const max = Number(cr.max) || 0;
       const targetName = normalizeCriterion(cr.name);
       let foundIndex = returnedCriteria.findIndex((item: any, i: number) =>
+        !used.has(i) && Number(item.rubricIndex) === index
+      );
+      if (foundIndex < 0) foundIndex = returnedCriteria.findIndex((item: any, i: number) =>
         !used.has(i) && normalizeCriterion(item.name) === targetName
       );
       if (foundIndex < 0) {
@@ -159,8 +162,7 @@ Deno.serve(async (req) => {
       // Rubrics sometimes use different labels for the same criteria. The rubric is
       // supplied in a stable order, so use position only if the maximum points agree.
       if (foundIndex < 0 && returnedCriteria.length === rubric.length &&
-          returnedCriteria[index] && !used.has(index) &&
-          Number(returnedCriteria[index].max) === max) {
+          returnedCriteria[index] && !used.has(index)) {
         foundIndex = index;
       }
       if (foundIndex < 0) {
