@@ -134,6 +134,13 @@ Deno.serve(async (req) => {
       if (!report || typeof report !== "object" || Array.isArray(report)) return json({ error: "Missing diagnostic report." }, 400);
       const serialized = JSON.stringify(report);
       if (serialized.length > 500000) return json({ error: "The report is too large to save." }, 413);
+      const diagnosticKey = String(body.diagnosticKey || "");
+      const diagnostics: Record<string, { key: string; name: string; skills: number }> = {
+        "a2-adaptive-grammar-v1": { key: "a2-adaptive-grammar-v1", name: "A2 Adaptive Grammar Diagnostic", skills: 25 },
+        "b1-adaptive-grammar-v1": { key: "b1-adaptive-grammar-v1", name: "B1 Adaptive Grammar Diagnostic", skills: 30 },
+      };
+      const diagnostic = diagnostics[diagnosticKey];
+      if (!diagnostic) return json({ error: "This diagnostic version is not supported." }, 400);
       const score = report.score || {};
       const percent = Number(score.percent);
       const questions = Number(score.questionsAnswered);
@@ -142,31 +149,34 @@ Deno.serve(async (req) => {
       const extended = Number(score.skillsExtended);
       const completedAt = Date.parse(String(report.completedAt || ""));
       if (!Number.isFinite(percent) || percent < 0 || percent > 100 ||
-          !Number.isInteger(questions) || questions < 0 || questions > 500 ||
+          !Number.isInteger(questions) || questions < 1 || questions > 500 ||
           !Number.isInteger(correct) || correct < 0 || correct > questions ||
-          !Number.isInteger(passed) || passed < 0 || passed > 25 ||
-          !Number.isInteger(extended) || extended < 0 || extended > 25 ||
+          !Number.isInteger(passed) || passed < 0 || passed > diagnostic.skills ||
+          !Number.isInteger(extended) || extended < 0 || extended > diagnostic.skills ||
+          !Array.isArray(report.skills) || report.skills.length !== diagnostic.skills ||
+          !Array.isArray(report.answers) || report.answers.length !== questions ||
           !Number.isFinite(completedAt)) {
         return json({ error: "The diagnostic report has invalid score data." }, 400);
       }
-      // Identity comes from the validated session, never from student-supplied report fields.
+      // Identity comes from the validated student session, never from submitted report fields.
       const safeReport = {
         schemaVersion: Number(report.schemaVersion) || 1,
-        testName: "A2 Adaptive Grammar Diagnostic",
+        diagnosticKey: diagnostic.key,
+        testName: diagnostic.name,
         completedAt: new Date(completedAt).toISOString(),
         student: {
-          className: String(session.students.class_id || ""),
+          className: String(session.students.classes?.name || ""),
           studentCode: String(session.students.student_code || ""),
           studentName: String(session.students.display_name || session.students.student_code || ""),
         },
         score: { questionsAnswered: questions, correct, percent, skillsPassedOrSecure: passed, skillsExtended: extended },
-        skills: Array.isArray(report.skills) ? report.skills.slice(0, 25) : [],
-        answers: Array.isArray(report.answers) ? report.answers.slice(0, 500) : [],
+        skills: report.skills.slice(0, diagnostic.skills),
+        answers: report.answers.slice(0, 500),
       };
       const { data: saved, error: saveErr } = await db.from("diagnostic_results").insert({
         school_id: session.school_id,
         student_id: session.student_id,
-        diagnostic_key: "a2-adaptive-grammar-v1",
+        diagnostic_key: diagnostic.key,
         completed_at: safeReport.completedAt,
         overall_percent: percent,
         questions_answered: questions,
@@ -179,7 +189,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, resultId: saved.id, completedAt: saved.completed_at });
     }
 
-    if (action === "logout") {
+        if (action === "logout") {
       const { error } = await db.from("student_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", session.id);
       if (error) throw error;
       return json({ ok: true });
