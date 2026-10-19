@@ -176,6 +176,50 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === "dashboard") {
+      const { data: assignedRows, error: assignedErr } = await db.from("assessment_assignments")
+        .select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode),classes!inner(id,is_active)")
+        .eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true);
+      if (assignedErr) throw assignedErr;
+      const assigned = (assignedRows || []).map((x: any) => x.assessments).filter((a: any) =>
+        a && a.is_active && a.is_published && inWindow(a)
+      );
+      const assessmentIds = assigned.map((a: any) => a.id);
+      let attempts: any[] = [];
+      if (assessmentIds.length) {
+        const { data, error } = await db.from("attempts").select("assessment_id,score_percent,completed_at")
+          .eq("student_id", session.student_id).in("assessment_id", assessmentIds).order("completed_at", { ascending: false });
+        if (error) throw error;
+        attempts = data || [];
+      }
+      const completedById = new Map<string, any>();
+      for (const a of attempts) if (!completedById.has(a.assessment_id)) completedById.set(a.assessment_id, a);
+      const { data: writingAssignments, error: writingErr } = await db.from("writing_assignments")
+        .select("id,title,prompt,instructions,min_words,max_words,due_at,status,classes(name)")
+        .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
+        .order("created_at", { ascending: false });
+      if (writingErr) throw writingErr;
+      const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions")
+        .select("assignment_id,status,submitted_at,teacher_scores,ai_review")
+        .eq("student_id", session.student_id);
+      if (writingSubErr) throw writingSubErr;
+      const subById = new Map((writingSubs || []).map((x: any) => [x.assignment_id, x]));
+      const assessmentItems = assigned.map((a: any) => {
+        const attempt = completedById.get(a.id);
+        return { id: a.id, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null };
+      });
+      const writingItems = (writingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => {
+        const sub: any = subById.get(a.id);
+        const scores = sub?.teacher_scores || {};
+        const values = Object.values(scores).map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v));
+        const total = values.length ? values.reduce((n: number, v: number) => n + v, 0) : null;
+        const max = Array.isArray(a.rubric) ? a.rubric.reduce((n: number, c: any) => n + (Number(c.max) || 0), 0) : null;
+        const score = sub?.status === "reviewed" && total !== null && max ? Math.round(total / max * 100) : null;
+        return { id: a.id, title: a.title, kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), submitted: ["submitted","reviewed"].includes(sub?.status), score, status: sub?.status || "not-started", completedAt: sub?.submitted_at || null };
+      });
+      return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems });
+    }
+
     if (action === "list") {
       const { data: assignments, error } = await db.from("assessment_assignments")
         .select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode),classes!inner(id,is_active)")
