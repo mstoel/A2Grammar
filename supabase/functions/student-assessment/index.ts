@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const { data: submissions, error: subErr } = await db.from("writing_submissions")
-        .select("id,assignment_id,draft_text,status,submitted_at,updated_at")
+        .select("id,assignment_id,draft_text,submitted_text,status,submitted_at,updated_at,teacher_scores,teacher_feedback")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
       return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.classes?.name || session.students.classes?.name || "" })), submissions: submissions || [] });
@@ -174,6 +174,26 @@ Deno.serve(async (req) => {
       const { error } = await db.from("student_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", session.id);
       if (error) throw error;
       return json({ ok: true });
+    }
+
+    if (action === "student-result") {
+      const resultType = String(body.resultType || "");
+      const resultId = String(body.resultId || "");
+      if (!resultId || !["diagnostic", "attempt"].includes(resultType)) return json({ error: "Missing or invalid result." }, 400);
+      if (resultType === "diagnostic") {
+        const { data, error } = await db.from("diagnostic_results")
+          .select("id,completed_at,overall_percent,diagnostic_key,report")
+          .eq("id", resultId).eq("student_id", session.student_id).maybeSingle();
+        if (error) throw error;
+        if (!data) return json({ error: "That result could not be found for your account." }, 404);
+        return json({ resultType, result: data });
+      }
+      const { data, error } = await db.from("attempts")
+        .select("id,assessment_id,completed_at,score_percent,correct_count,questions_answered,result,assessments(title,description)")
+        .eq("id", resultId).eq("student_id", session.student_id).maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "That result could not be found for your account." }, 404);
+      return json({ resultType, result: data });
     }
 
     if (action === "dashboard") {
