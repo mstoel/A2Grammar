@@ -40,7 +40,7 @@ label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width
 <h3 class="section-title">Assigned assignments</h3><div id="assignedList"></div>
 <h3 class="section-title">Completed assignments</h3><div id="completedList"></div>
 <div class="dashboard-actions" id="dashboardActions">
-<a id="openTestsLink" href="student-portal.html">Open tests and quizzes</a>
+<a id="openTestsLink" href="student-portal.html">Open tests</a><a href="student-portal.html">Assigned tests</a>
 </div>
 <button id="signout" class="signout" type="button">Sign out</button>
 </section>
@@ -84,5 +84,8 @@ async function loadDashboard(){
 }
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('loginBtn');btn.disabled=true;btn.textContent='Signing in…';try{const studentCode=$('student').value.trim().toUpperCase(),accessCode=$('secret').value.trim();if(!studentCode||!accessCode)throw Error('Enter both your student number and secret number.');const d=await api({action:'login',schoolSlug:SCHOOL_CONFIG.schoolSlug,studentCode,accessCode});token=d.token;localStorage.setItem(TOKEN,token);sessionStorage.setItem(TOKEN,token);const identity={student:d.student,school:d.school};localStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));sessionStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));$('login').classList.add('hidden');$('portal').classList.remove('hidden');$('welcome').textContent='Welcome, '+d.student;$('secret').value='';showStatus('You are signed in to '+d.school+'.','good');await loadDashboard()}catch(err){showStatus(err.message,'bad')}finally{btn.disabled=false;btn.textContent='Sign in'}});
 $('signout').onclick=async()=>{try{if(token)await api({action:'logout'},true)}catch{}token='';localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);localStorage.removeItem('sap_student_identity_v1');sessionStorage.removeItem('sap_student_identity_v1');$('portal').classList.add('hidden');$('login').classList.remove('hidden');$('student').value='';$('secret').value='';showStatus('You have signed out.','good')};
+
+// Restore an existing student session when this page is opened as the dashboard.
+(async()=>{if(!token)return;let identity={};try{identity=JSON.parse(localStorage.getItem('sap_student_identity_v1')||sessionStorage.getItem('sap_student_identity_v1')||'{}')}catch{}if(!identity.student)return;$('login').classList.add('hidden');$('portal').classList.remove('hidden');$('welcome').textContent='Welcome, '+identity.student;try{await loadDashboard()}catch(e){dashboardStatus(e.message,'bad')}})();
 </script>
 </body></html>
