@@ -24,29 +24,38 @@ Deno.serve(async (req) => {
     const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
     if (!accessToken) return json({ error: "Please sign in again." }, 401);
 
-    const userClient = createClient(url, anonKey, { global: { headers: { Authorization: "Bearer " + accessToken } }, auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: authData, error: authError } = await userClient.auth.getUser(accessToken);
-    if (authError || !authData.user) return json({ error: "Your teacher session has expired. Please sign in again." }, 401);
-    const user = authData.user;
+    const internalRequest = accessToken === serviceKey;
+    let user: any = null;
+    if (!internalRequest) {
+      const userClient = createClient(url, anonKey, { global: { headers: { Authorization: "Bearer " + accessToken } }, auth: { persistSession: false, autoRefreshToken: false } });
+      const { data: authData, error: authError } = await userClient.auth.getUser(accessToken);
+      if (authError || !authData.user) return json({ error: "Your teacher session has expired. Please sign in again." }, 401);
+      user = authData.user;
+    }
 
     const body = await req.json();
     const submissionId = String(body.submissionId || "").trim();
     if (!submissionId) return json({ error: "Missing submission ID." }, 400);
 
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: membership, error: memberError } = await admin
-      .from("school_memberships").select("school_id").eq("user_id", user.id);
-    if (memberError) throw memberError;
-    const schoolIds = (membership || []).map((m: any) => m.school_id);
-    if (!schoolIds.length) return json({ error: "Your account is not linked to a school." }, 403);
+    const schoolIds: string[] = [];
+    if (!internalRequest) {
+      const { data: membership, error: memberError } = await admin.from("school_memberships").select("school_id").eq("user_id", user.id);
+      if (memberError) throw memberError;
+      schoolIds.push(...(membership || []).map((m: any) => m.school_id));
+      if (!schoolIds.length) return json({ error: "Your account is not linked to a school." }, 403);
+    }
 
     const { data: submission, error: subError } = await admin.from("writing_submissions")
-      .select("id,school_id,assignment_id,draft_text,submitted_text,word_count,writing_assignments(title,prompt,instructions,rubric,min_words,max_words),students(display_name,student_code)")
+      .select("id,school_id,assignment_id,draft_text,submitted_text,word_count,status,writing_assignments(title,prompt,instructions,rubric,min_words,max_words,is_open_test),students(display_name,student_code)")
       .eq("id", submissionId).maybeSingle();
     if (subError) throw subError;
-    if (!submission || !schoolIds.includes(submission.school_id)) return json({ error: "Submission not found or you do not have permission to assess it." }, 404);
-
+    if (!submission) return json({ error: "Submission not found or you do not have permission to assess it." }, 404);
     const assignment: any = Array.isArray(submission.writing_assignments) ? submission.writing_assignments[0] : submission.writing_assignments;
+    if (internalRequest) {
+      if (!assignment?.is_open_test || submission.status !== "submitted") return json({ error: "Internal auto-assessment is only allowed for submitted Open Tests." }, 403);
+    } else if (!schoolIds.includes(submission.school_id)) return json({ error: "Submission not found or you do not have permission to assess it." }, 404);
+
     const student: any = Array.isArray(submission.students) ? submission.students[0] : submission.students;
     const rubric = Array.isArray(assignment?.rubric) ? assignment.rubric : (Array.isArray(assignment?.rubric?.criteria) ? assignment.rubric.criteria : []);
     if (!rubric.length) return json({ error: "This assignment has no saved rubric. Edit and save the assignment rubric first." }, 400);
@@ -146,7 +155,7 @@ Deno.serve(async (req) => {
       improvements: requestedParts.includes("improvements") ? draft.improvements || [] : [],
       grammarCorrections: requestedParts.includes("grammar") ? draft.grammarCorrections || [] : [],
       vocabularySuggestions: requestedParts.includes("vocabulary") ? draft.vocabularySuggestions || [] : [],
-      caveats: String(draft.caveats || "AI suggestions require teacher review before saving.")
+      caveats: String(draft.caveats || (internalRequest ? "Automatically generated AI feedback. Review it critically." : "AI suggestions require teacher review before saving."))
     };
     const { error: saveError } = await admin.from("writing_submissions").update({ ai_review: result, updated_at: new Date().toISOString() }).eq("id", submissionId);
     if (saveError) throw saveError;
