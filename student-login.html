@@ -21,13 +21,13 @@ label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width
 <main>
 <div id="status" class="status" role="status" aria-live="polite"></div>
 <section id="login" class="card">
-<h2>Student sign in</h2><p class="sub">Use the student number and secret number given to you by your teacher.</p>
+<h2>Student sign in</h2><p class="sub">Use the student number and personal access code given to you by your teacher.</p>
 <form id="loginForm">
 <label for="student">Student number</label><input id="student" name="student" placeholder="e.g. HM26001" autocomplete="username" autocapitalize="characters" spellcheck="false" required>
-<label for="secret">Secret number</label><input id="secret" name="secret" type="password" inputmode="numeric" placeholder="Enter your secret number" autocomplete="current-password" required>
+<label for="secret">Personal access code</label><input id="secret" name="secret" type="password" inputmode="text" autocapitalize="none" spellcheck="false" placeholder="Enter your access code" autocomplete="current-password" required>
 <button id="loginBtn" type="submit">Sign in</button>
 </form>
-<p class="hint">Keep your secret number private. Need help? Ask your teacher.</p>
+<p class="hint">Keep your personal access code private. Need help? Ask your teacher.</p>
 </section>
 <section id="portal" class="card portal hidden">
 <h2 id="welcome">Welcome!</h2><p class="sub" id="classLabel">Your student dashboard</p>
@@ -85,7 +85,7 @@ async function loadDashboard(){
 }
 // Prefill the simple student sign-in details submitted on the Assessly landing page.
 try{const prefill=JSON.parse(sessionStorage.getItem('assessly_student_prefill_v1')||'null');if(prefill){if(prefill.studentId)$('student').value=prefill.studentId;if(prefill.accessCode)$('secret').value=prefill.accessCode;sessionStorage.removeItem('assessly_student_prefill_v1');}}catch{}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('loginBtn');btn.disabled=true;btn.textContent='Signing in…';try{const studentCode=$('student').value.trim().toUpperCase(),accessCode=$('secret').value.trim();if(!studentCode||!accessCode)throw Error('Enter both your student number and secret number.');const d=await api({action:'login',schoolSlug:SCHOOL_CONFIG.schoolSlug,studentCode,accessCode});token=d.token;localStorage.setItem(TOKEN,token);sessionStorage.setItem(TOKEN,token);const identity={student:d.student,school:d.school};localStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));sessionStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));$('login').classList.add('hidden');$('portal').classList.remove('hidden');$('welcome').textContent='Welcome, '+d.student;$('secret').value='';showStatus('You are signed in to '+d.school+'.','good');await loadDashboard()}catch(err){showStatus(err.message,'bad')}finally{btn.disabled=false;btn.textContent='Sign in'}});
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('loginBtn');btn.disabled=true;btn.textContent='Signing in…';try{const studentCode=$('student').value.trim().toUpperCase(),accessCode=$('secret').value.trim();if(!studentCode||!accessCode)throw Error('Enter both your student number and personal access code.');const d=await api({action:'login',schoolSlug:SCHOOL_CONFIG.schoolSlug,studentCode,accessCode});token=d.token;localStorage.setItem(TOKEN,token);sessionStorage.setItem(TOKEN,token);const identity={student:d.student,school:d.school};localStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));sessionStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));$('login').classList.add('hidden');$('portal').classList.remove('hidden');$('welcome').textContent='Welcome, '+d.student;$('secret').value='';showStatus('You are signed in to '+d.school+'.','good');await loadDashboard()}catch(err){showStatus(err.message,'bad')}finally{btn.disabled=false;btn.textContent='Sign in'}});
 $('signout').onclick=async()=>{try{if(token)await api({action:'logout'},true)}catch{}token='';localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);localStorage.removeItem('sap_student_identity_v1');sessionStorage.removeItem('sap_student_identity_v1');$('portal').classList.add('hidden');$('login').classList.remove('hidden');$('student').value='';$('secret').value='';showStatus('You have signed out.','good')};
 
 // Restore an existing student session when this page is opened as the dashboard.
