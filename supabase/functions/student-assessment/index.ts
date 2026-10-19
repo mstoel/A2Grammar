@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         testName: diagnostic.name,
         completedAt: new Date(completedAt).toISOString(),
         student: {
-          className: String(session.students.classes?.name || ""),
+          className: String(session.students.class_id || ""),
           studentCode: String(session.students.student_code || ""),
           studentName: String(session.students.display_name || session.students.student_code || ""),
         },
