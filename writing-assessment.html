@@ -32,7 +32,7 @@ function criterionMatch(criteria, criterion, index, candidates){
  const tokens=target.split(' ').filter(w=>w.length>3);
  found=candidates.find(x=>{const n=norm(x.name);return tokens.length&&tokens.filter(t=>n.includes(t)).length>=Math.min(2,tokens.length);});
  if(found)return found;
- if(candidates.length===criteria.length){const positional=candidates[index];if(positional&&Number(positional.max)===Number(criterion.max))return positional;}
+ if(candidates.length===criteria.length){const positional=candidates[index];if(positional)return positional;}
  const sameMax=candidates.filter(x=>Number(x.max)===Number(criterion.max));
  return sameMax.length===1?sameMax[0]:null;
 }
