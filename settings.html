@@ -15,7 +15,7 @@ main{max-width:1180px;margin:24px auto;padding:0 18px 48px}.notice{padding:12px 
 <body>
 <header class="top"><div class="topinner"><nav class="topnav"><a href="platform.html">← Platform home</a><a href="teacher-dashboard.html">Teacher dashboard</a><a href="assessment-builder.html">Assessment builder</a></nav><div class="eyebrow">Platform configuration</div><h1>Settings</h1><p>Set the defaults for your school's assessment workspace.</p></div></header>
 <main>
-<div class="notice"><strong>First version:</strong> settings are saved in this browser only. They are not yet shared with other devices or stored in the school's Supabase records. The original A2 Grammar Diagnostic is not changed by this page.</div>
+<div class="notice" id="connectionNotice"><strong>Connecting to Supabase…</strong> Checking your saved platform connection and school access.</div><div class="field" style="margin-bottom:18px"><label for="activeSchool">School whose settings you are editing</label><select id="activeSchool"><option value="">Loading schools…</option></select><p class="help" id="accessHelp">Sign in through the Teacher Dashboard first if no school appears.</p></div>
 <div class="layout">
 <nav class="sidebar" aria-label="Settings categories">
 <div class="group">School</div>
