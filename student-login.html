@@ -37,10 +37,8 @@ label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width
 </div>
 <h3 class="section-title">Assigned assignments</h3><div id="assignedList"></div>
 <h3 class="section-title">Completed assignments</h3><div id="completedList"></div>
-<div class="dashboard-actions">
-<a href="student-portal.html">Open tests and quizzes</a>
-<a href="writing-student.html">Writing workspace</a>
-<a href="student-diagnostic.html">A2 Grammar Diagnostic</a>
+<div class="dashboard-actions" id="dashboardActions">
+<a id="openTestsLink" href="student-portal.html">Open tests and quizzes</a>
 </div>
 <button id="signout" class="signout" type="button">Sign out</button>
 </section>
@@ -58,14 +56,14 @@ function dashboardStatus(message,kind=''){const e=$('dashboardStatus');if(!e){sh
 function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function taskCard(a,completed=false){
  const score=Number.isFinite(Number(a.score))&&a.score!==null?Math.max(0,Math.min(100,Number(a.score))):null;
- const href=a.kind==='Writing'?'writing-student.html':'student-portal.html';
+ const href=a.kind==='Writing'?'writing-student.html':a.kind==='Grammar diagnostic'?'student-diagnostic.html':'student-portal.html';
  const label=completed?(score===null?'Submitted · awaiting score':score+'%'):(a.supported===false&&a.kind!=='Writing'?'Not available yet':'Not started');
  return '<article class="task"><div class="task-head"><div><h3>'+esc(a.title)+'</h3><p>'+esc(a.description||a.kind||'Assignment')+'</p></div><span class="tag">'+esc(label)+'</span></div>'+(completed&&score!==null?'<div class="scorebar" role="img" aria-label="Score '+score+' percent"><span style="width:'+score+'%"></span></div><p>'+score+'% score'+(a.completedAt?' · Completed '+new Date(a.completedAt).toLocaleDateString():'')+'</p>':'')+'<div style="margin-top:10px"><a href="'+href+'" style="color:#4338ca;font-weight:700;text-decoration:none">'+(completed?'View work':'Open assignment')+' →</a></div></article>'
 }
 async function loadDashboard(){
  try{
   const d=await api({action:'dashboard'},true);
-  const all=[...(d.assessments||[]),...(d.writing||[])];
+  const all=[...(d.assessments||[]),...(d.writing||[]),...(d.diagnostics||[])];
   const completed=all.filter(a=>a.completed),assigned=all.filter(a=>!a.completed);
   $('classLabel').textContent=d.className?'Class: '+d.className:'Your student dashboard';
   $('assignedCount').textContent=assigned.length;$('completedCount').textContent=completed.length;
@@ -73,6 +71,12 @@ async function loadDashboard(){
   $('averageScore').textContent=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)+'%':'—';
   $('assignedList').innerHTML=assigned.length?assigned.map(a=>taskCard(a,false)).join(''):'<div class="empty">You have no outstanding assignments right now. Nice work!</div>';
   $('completedList').innerHTML=completed.length?completed.map(a=>taskCard(a,true)).join(''):'<div class="empty">Your completed assignments will appear here, with a score bar when a score is available.</div>';
+  const actions=$('dashboardActions');
+  if(actions){
+    actions.querySelectorAll('a:not(#openTestsLink)').forEach(a=>a.remove());
+    if(assigned.some(a=>a.kind==='Writing')||completed.some(a=>a.kind==='Writing')){const a=document.createElement('a');a.href='writing-student.html';a.textContent='Writing workspace';actions.append(a);}
+    if(assigned.some(a=>a.kind==='Grammar diagnostic')||completed.some(a=>a.kind==='Grammar diagnostic')){const a=document.createElement('a');a.href='student-diagnostic.html';a.textContent='A2 Grammar Diagnostic';actions.append(a);}
+  }
   dashboardStatus('Your assignments are up to date.','good');
  }catch(e){dashboardStatus('Signed in, but the dashboard could not load: '+e.message,'bad');if(/sign in again|session has expired/i.test(e.message)){localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);token='';$('portal').classList.add('hidden');$('login').classList.remove('hidden')}}
 }
