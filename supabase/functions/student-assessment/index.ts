@@ -211,13 +211,22 @@ Deno.serve(async (req) => {
       const writingItems = (writingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => {
         const sub: any = subById.get(a.id);
         const scores = sub?.teacher_scores || {};
-        const values = Object.values(scores).map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v));
-        const total = values.length ? values.reduce((n: number, v: number) => n + v, 0) : null;
-        const max = Array.isArray(a.rubric) ? a.rubric.reduce((n: number, c: any) => n + (Number(c.max) || 0), 0) : null;
-        const score = sub?.status === "reviewed" && total !== null && max ? Math.round(total / max * 100) : null;
+        const total = Number.isFinite(Number(scores.total)) ? Number(scores.total) : null;
+        const max = Number.isFinite(Number(scores.max)) && Number(scores.max) > 0 ? Number(scores.max) : 100;
+        const score = total !== null ? Math.round(Math.max(0, Math.min(100, total / max * 100))) : null;
         return { id: a.id, title: a.title, kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), submitted: ["submitted","reviewed"].includes(sub?.status), score, status: sub?.status || "not-started", completedAt: sub?.submitted_at || null };
       });
-      return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems });
+      const { data: diagnosticRows, error: diagnosticErr } = await db.from("diagnostic_results")
+        .select("id,completed_at,overall_percent,diagnostic_key,report")
+        .eq("student_id", session.student_id)
+        .order("completed_at", { ascending: false });
+      if (diagnosticErr) throw diagnosticErr;
+      const diagnostics = (diagnosticRows || []).map((r: any) => ({
+        id: r.id, title: r.report?.testName || (r.diagnostic_key === "a2-adaptive-grammar-v1" ? "A2 Grammar Diagnostic" : "Grammar Diagnostic"),
+        kind: "Grammar diagnostic", completed: true, score: Number(r.overall_percent), completedAt: r.completed_at,
+        description: "Completed diagnostic"
+      }));
+      return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems, diagnostics });
     }
 
     if (action === "list") {
