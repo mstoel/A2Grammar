@@ -163,6 +163,41 @@ Deno.serve(async (req) => {
       return json({ ok: true, submission: saved });
     }
 
+    if (action === "load-diagnostic-draft") {
+      const diagnosticKey = String(body.diagnosticKey || "");
+      if (!["a2-adaptive-grammar-v1", "b1-adaptive-grammar-v1"].includes(diagnosticKey)) return json({ error: "This diagnostic version is not supported." }, 400);
+      const { data, error } = await db.from("diagnostic_drafts").select("draft_payload,updated_at").eq("student_id", session.student_id).eq("diagnostic_key", diagnosticKey).maybeSingle();
+      if (error) throw error;
+      return json({ ok: true, draft: data?.draft_payload || null, updatedAt: data?.updated_at || null });
+    }
+
+    if (action === "save-diagnostic-draft") {
+      const diagnosticKey = String(body.diagnosticKey || "");
+      const draft = body.draft;
+      if (!["a2-adaptive-grammar-v1", "b1-adaptive-grammar-v1"].includes(diagnosticKey)) return json({ error: "This diagnostic version is not supported." }, 400);
+      if (!draft || typeof draft !== "object" || Array.isArray(draft)) return json({ error: "Missing saved progress." }, 400);
+      const serialized = JSON.stringify(draft);
+      if (serialized.length > 500000) return json({ error: "Saved progress is too large." }, 413);
+      if (Number(draft.schemaVersion) !== 1 || !Array.isArray(draft.state) || !Array.isArray(draft.answerLog) || !draft.currentQ) return json({ error: "Saved progress has an invalid format." }, 400);
+      const { error } = await db.from("diagnostic_drafts").upsert({
+        school_id: session.school_id,
+        student_id: session.student_id,
+        diagnostic_key: diagnosticKey,
+        draft_payload: draft,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "student_id,diagnostic_key" });
+      if (error) throw error;
+      return json({ ok: true, savedAt: new Date().toISOString() });
+    }
+
+    if (action === "clear-diagnostic-draft") {
+      const diagnosticKey = String(body.diagnosticKey || "");
+      if (!["a2-adaptive-grammar-v1", "b1-adaptive-grammar-v1"].includes(diagnosticKey)) return json({ error: "This diagnostic version is not supported." }, 400);
+      const { error } = await db.from("diagnostic_drafts").delete().eq("student_id", session.student_id).eq("diagnostic_key", diagnosticKey);
+      if (error) throw error;
+      return json({ ok: true });
+    }
+
     if (action === "submit-diagnostic") {
       const report = body.report;
       if (!report || typeof report !== "object" || Array.isArray(report)) return json({ error: "Missing diagnostic report." }, 400);
