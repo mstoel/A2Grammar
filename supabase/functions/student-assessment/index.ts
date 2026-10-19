@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       if (!report || typeof report !== "object" || Array.isArray(report)) return json({ error: "Missing diagnostic report." }, 400);
       const serialized = JSON.stringify(report);
       if (serialized.length > 500000) return json({ error: "The report is too large to save." }, 413);
-      const diagnosticKey = String(body.diagnosticKey || "");
+      const diagnosticKey = String(body.diagnosticKey || "a2-adaptive-grammar-v1");
       const diagnostics: Record<string, { key: string; name: string; skills: number }> = {
         "a2-adaptive-grammar-v1": { key: "a2-adaptive-grammar-v1", name: "A2 Adaptive Grammar Diagnostic", skills: 25 },
         "b1-adaptive-grammar-v1": { key: "b1-adaptive-grammar-v1", name: "B1 Adaptive Grammar Diagnostic", skills: 30 },
