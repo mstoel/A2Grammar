@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const { data: submissions, error: subErr } = await db.from("writing_submissions")
-        .select("id,assignment_id,draft_text,submitted_text,status,submitted_at,updated_at,teacher_scores,teacher_feedback")
+        .select("id,assignment_id,draft_text,submitted_text,status,submitted_at,updated_at,teacher_scores,teacher_feedback,ai_review")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
       return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.is_open_test ? "Open Test" : (a.classes?.name || session.students.classes?.name || "") })), submissions: submissions || [] });
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
       if (!assignmentId) return json({ error: "Missing writing assignment." }, 400);
       if (textValue.length > 100000) return json({ error: "Your writing is too long to save in one submission." }, 413);
       const { data: assignment, error: aErr } = await db.from("writing_assignments")
-        .select("id,school_id,class_id,is_open_test,status,min_words,max_words,due_at")
+        .select("id,school_id,class_id,is_open_test,status,min_words,max_words,due_at,rubric")
         .eq("id", assignmentId).eq("school_id", session.school_id)
         .eq("status", "published")
         .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true").maybeSingle();
@@ -128,6 +128,38 @@ Deno.serve(async (req) => {
       const { data: saved, error: saveErr } = await db.from("writing_submissions")
         .upsert(values, { onConflict: "assignment_id,student_id" }).select("id,status,word_count,updated_at,submitted_at").single();
       if (saveErr) throw saveErr;
+      if (action === "writing-submit" && assignment.is_open_test) {
+        try {
+          const aiResponse = await fetch(url + "/functions/v1/writing-ai-assess", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": serviceKey, "Authorization": "Bearer " + serviceKey },
+            body: JSON.stringify({ submissionId: saved.id })
+          });
+          const aiResult = await aiResponse.json().catch(() => ({}));
+          if (!aiResponse.ok) {
+            console.error("Open-test AI assessment failed", aiResponse.status, aiResult?.error || "Unknown error");
+            return json({ ok: true, submission: saved, aiAssessmentPending: true, aiAssessmentError: aiResult?.error || "Automatic AI assessment could not complete. Please contact your teacher." });
+          }
+          const criteria = Array.isArray(aiResult.criteria) ? aiResult.criteria : [];
+          const total = criteria.reduce((sum: number, item: any) => sum + (Number(item.score) || 0), 0);
+          const max = criteria.reduce((sum: number, item: any) => sum + (Number(item.max) || 0), 0) || 100;
+          const scoreMap: Record<string, any> = { total, max, aiReport: aiResult };
+          for (const item of criteria) {
+            const key = String(item.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+            if (key) scoreMap[key] = Number(item.score) || 0;
+          }
+          const reviewedAt = new Date().toISOString();
+          const { error: finalErr } = await db.from("writing_submissions").update({
+            status: "reviewed", ai_review: aiResult, teacher_scores: scoreMap,
+            teacher_feedback: String(aiResult.feedback || ""), reviewed_at: reviewedAt, updated_at: reviewedAt
+          }).eq("id", saved.id).eq("student_id", session.student_id);
+          if (finalErr) throw finalErr;
+          return json({ ok: true, submission: { ...saved, status: "reviewed" }, aiReview: aiResult });
+        } catch (aiError) {
+          console.error("Open-test AI assessment error", aiError);
+          return json({ ok: true, submission: saved, aiAssessmentPending: true, aiAssessmentError: "Your essay was saved, but the AI check could not finish. Please tell your teacher." });
+        }
+      }
       return json({ ok: true, submission: saved });
     }
 
