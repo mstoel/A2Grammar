@@ -137,9 +137,39 @@ Deno.serve(async (req) => {
     const raw = aiJson?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("");
     if (!raw) return json({ error: aiJson?.promptFeedback?.blockReason || "The AI returned an empty assessment." }, 502);
     const draft = JSON.parse(raw);
-    const criteria = rubric.map((cr: any) => {
-      const found = (draft.criteria || []).find((item: any) => String(item.name).trim().toLowerCase() === String(cr.name).trim().toLowerCase());
+    const normalizeCriterion = (value: unknown) => String(value || "").toLowerCase()
+      .replace(/organisation/g, "organization").replace(/[^a-z0-9]+/g, " ").trim();
+    const returnedCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
+    const used = new Set<number>();
+    const criteria = rubric.map((cr: any, index: number) => {
       const max = Number(cr.max) || 0;
+      const targetName = normalizeCriterion(cr.name);
+      let foundIndex = returnedCriteria.findIndex((item: any, i: number) =>
+        !used.has(i) && normalizeCriterion(item.name) === targetName
+      );
+      if (foundIndex < 0) {
+        const targetWords = targetName.split(" ").filter((word: string) => word.length > 3);
+        foundIndex = returnedCriteria.findIndex((item: any, i: number) => {
+          if (used.has(i)) return false;
+          const candidate = normalizeCriterion(item.name);
+          return targetWords.length > 0 &&
+            targetWords.filter((word: string) => candidate.includes(word)).length >= Math.min(2, targetWords.length);
+        });
+      }
+      // Rubrics sometimes use different labels for the same criteria. The rubric is
+      // supplied in a stable order, so use position only if the maximum points agree.
+      if (foundIndex < 0 && returnedCriteria.length === rubric.length &&
+          returnedCriteria[index] && !used.has(index) &&
+          Number(returnedCriteria[index].max) === max) {
+        foundIndex = index;
+      }
+      if (foundIndex < 0) {
+        const sameMax = returnedCriteria.map((item: any, i: number) => ({ item, i }))
+          .filter(({ item, i }: any) => !used.has(i) && Number(item.max) === max);
+        if (sameMax.length === 1) foundIndex = sameMax[0].i;
+      }
+      const found = foundIndex >= 0 ? returnedCriteria[foundIndex] : null;
+      if (foundIndex >= 0) used.add(foundIndex);
       return {
         name: String(cr.name),
         max,
