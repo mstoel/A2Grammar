@@ -28,11 +28,19 @@ label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width
 <p class="hint">Keep your secret number private. Need help? Ask your teacher.</p>
 </section>
 <section id="portal" class="card portal hidden">
-<h2 id="welcome">Welcome!</h2><p class="sub">Choose what you need to work on today.</p>
-<div class="links">
-<a href="student-portal.html">My tests and assessments<span>Open assigned tests and quizzes</span></a>
-<a href="writing-student.html">Writing workspace<span>Write, save and submit essays</span></a>
-<a href="student-diagnostic.html">A2 Grammar Diagnostic<span>Check your grammar skills</span></a>
+<h2 id="welcome">Welcome!</h2><p class="sub" id="classLabel">Your student dashboard</p>
+<div id="dashboardStatus" class="status show">Loading your assignments…</div>
+<div class="stats">
+<div class="stat"><strong id="assignedCount">0</strong><span>Assigned tasks</span></div>
+<div class="stat"><strong id="completedCount">0</strong><span>Completed</span></div>
+<div class="stat"><strong id="averageScore">—</strong><span>Average score</span></div>
+</div>
+<h3 class="section-title">Assigned assignments</h3><div id="assignedList"></div>
+<h3 class="section-title">Completed assignments</h3><div id="completedList"></div>
+<div class="dashboard-actions">
+<a href="student-portal.html">Open tests and quizzes</a>
+<a href="writing-student.html">Writing workspace</a>
+<a href="student-diagnostic.html">A2 Grammar Diagnostic</a>
 </div>
 <button id="signout" class="signout" type="button">Sign out</button>
 </section>
@@ -46,7 +54,7 @@ const cfg={url:saved.url||SCHOOL_CONFIG.url,key:saved.key||SCHOOL_CONFIG.key};le
 function showStatus(message,kind=''){const el=$('status');el.textContent=message;el.className='status show '+kind}
 async function api(body,auth=false){if(!cfg.url||!cfg.key||cfg.key.includes('PASTE_'))throw Error('The portal has not been connected to the school database yet. Please ask your teacher for help.');const headers={'Content-Type':'application/json','apikey':cfg.key};if(auth&&token)headers.Authorization='Bearer '+token;const res=await fetch(cfg.url+'/functions/v1/student-assessment',{method:'POST',headers,body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||'Sign-in failed. Please check your details and try again.');return data}
 
-function dashboardStatus(message,kind=''){const e=$('dashboardStatus');e.textContent=message;e.className='status show '+kind}
+function dashboardStatus(message,kind=''){const e=$('dashboardStatus');if(!e){showStatus(message,kind);return}e.textContent=message;e.className='status show '+kind}
 function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function taskCard(a,completed=false){
  const score=Number.isFinite(Number(a.score))&&a.score!==null?Math.max(0,Math.min(100,Number(a.score))):null;
@@ -66,7 +74,7 @@ async function loadDashboard(){
   $('assignedList').innerHTML=assigned.length?assigned.map(a=>taskCard(a,false)).join(''):'<div class="empty">You have no outstanding assignments right now. Nice work!</div>';
   $('completedList').innerHTML=completed.length?completed.map(a=>taskCard(a,true)).join(''):'<div class="empty">Your completed assignments will appear here, with a score bar when a score is available.</div>';
   dashboardStatus('Your assignments are up to date.','good');
- }catch(e){dashboardStatus(e.message,'bad');if(/sign in again|session has expired|Please sign in/i.test(e.message)){localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);token='';$('portal').classList.add('hidden');$('login').classList.remove('hidden')}}
+ }catch(e){dashboardStatus('Signed in, but the dashboard could not load: '+e.message,'bad');if(/sign in again|session has expired/i.test(e.message)){localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);token='';$('portal').classList.add('hidden');$('login').classList.remove('hidden')}}
 }
 \n$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const btn=$('loginBtn');btn.disabled=true;btn.textContent='Signing in…';try{const studentCode=$('student').value.trim().toUpperCase(),accessCode=$('secret').value.trim();if(!studentCode||!accessCode)throw Error('Enter both your student number and secret number.');const d=await api({action:'login',schoolSlug:SCHOOL_CONFIG.schoolSlug,studentCode,accessCode});token=d.token;localStorage.setItem(TOKEN,token);sessionStorage.setItem(TOKEN,token);const identity={student:d.student,school:d.school};localStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));sessionStorage.setItem('sap_student_identity_v1',JSON.stringify(identity));$('login').classList.add('hidden');$('portal').classList.remove('hidden');$('welcome').textContent='Welcome, '+d.student;$('secret').value='';showStatus('You are signed in to '+d.school+'.','good');await loadDashboard()}catch(err){showStatus(err.message,'bad')}finally{btn.disabled=false;btn.textContent='Sign in'}});
 $('signout').onclick=async()=>{try{if(token)await api({action:'logout'},true)}catch{}token='';localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);localStorage.removeItem('sap_student_identity_v1');sessionStorage.removeItem('sap_student_identity_v1');$('portal').classList.add('hidden');$('login').classList.remove('hidden');$('student').value='';$('secret').value='';showStatus('You have signed out.','good')};
