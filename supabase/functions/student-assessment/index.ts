@@ -303,15 +303,10 @@ Deno.serve(async (req) => {
       const completedById = new Map<string, any>();
       for (const a of attempts) if (!completedById.has(a.assessment_id)) completedById.set(a.assessment_id, a);
       const { data: writingAssignments, error: writingErr } = await db.from("writing_assignments")
-        .select("id,title,prompt,instructions,rubric,min_words,max_words,due_at,status,is_open_test,classes(name)")
+        .select("id,title,prompt,instructions,rubric,min_words,max_words,due_at,status,classes(name)")
         .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
         .order("created_at", { ascending: false });
       if (writingErr) throw writingErr;
-      const { data: openWritingAssignments, error: openWritingErr } = await db.from("writing_assignments")
-        .select("id,title,prompt,instructions,min_words,max_words,due_at,status,is_open_test")
-        .eq("school_id", session.school_id).eq("is_open_test", true).eq("status", "published")
-        .order("created_at", { ascending: false });
-      if (openWritingErr) throw openWritingErr;
       const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions")
         .select("assignment_id,status,submitted_at,teacher_scores,teacher_feedback,submitted_text,ai_review")
         .eq("student_id", session.student_id);
@@ -339,11 +334,7 @@ Deno.serve(async (req) => {
         kind: "Grammar diagnostic", completed: true, score: Number(r.overall_percent), completedAt: r.completed_at,
         description: "Completed diagnostic"
       }));
-      const openWritingItems = (openWritingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => {
-        const sub: any = subById.get(a.id);
-        return { id: a.id, title: a.title, description: a.prompt || "", kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), score: null, status: sub?.status || "not-started", available: true };
-      }).filter((a: any) => !a.completed);
-      return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems, openAssignments: openWritingItems, diagnostics });
+      return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems, diagnostics });
     }
 
     if (action === "list") {
