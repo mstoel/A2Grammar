@@ -90,6 +90,7 @@ on conflict (source_key) do update set
 
 -- Register existing Assessment Builder records without copying their question data.
 -- Existing assessment IDs are preserved as source_record_id.
+-- Importantly, all new catalogue records start private, regardless of the legacy is_published flag.
 insert into public.test_catalog
   (slug, title, description, subject, cefr_level, assessment_type, engine_key,
    source_kind, source_table, source_record_id, source_key, publication_status, is_active, metadata)
@@ -113,7 +114,7 @@ select
   'assessments',
   a.id::text,
   'assessment:' || a.id::text,
-  case when coalesce(a.is_published, false) then 'shared' else 'private' end,
+  'private',
   coalesce(a.is_active, true),
   jsonb_build_object('registration','initial-migration','legacy_assessment_data',jsonb_build_object('level',a.assessment_data->>'level'))
 from public.assessments a
@@ -123,7 +124,6 @@ on conflict (source_key) do update set
   subject = coalesce(excluded.subject, public.test_catalog.subject),
   cefr_level = coalesce(excluded.cefr_level, public.test_catalog.cefr_level),
   engine_key = excluded.engine_key,
-  publication_status = excluded.publication_status,
   is_active = excluded.is_active,
   updated_at = now();
 
