@@ -90,7 +90,7 @@ on conflict (source_key) do update set
 
 -- Register existing Assessment Builder records without copying their question data.
 -- Existing assessment IDs are preserved as source_record_id.
--- Importantly, all new catalogue records start private, regardless of the legacy is_published flag.
+-- All new catalogue records start private, regardless of the legacy is_published flag.
 insert into public.test_catalog
   (slug, title, description, subject, cefr_level, assessment_type, engine_key,
    source_kind, source_table, source_record_id, source_key, publication_status, is_active, metadata)
@@ -127,8 +127,9 @@ on conflict (source_key) do update set
   is_active = excluded.is_active,
   updated_at = now();
 
--- Writing assignments are registered as catalogue entries grouped by their task content.
--- Class-specific assignment rows stay in writing_assignments and are not modified.
+-- Register writing tasks grouped by identical title, prompt, instructions, and rubric key.
+-- All underlying class-specific assignment rows remain in writing_assignments unchanged.
+-- Every grouped assignment ID is retained in metadata.assignment_ids, not just the first ID.
 insert into public.test_catalog
   (slug, title, description, subject, cefr_level, assessment_type, engine_key,
    source_kind, source_table, source_record_id, source_key, publication_status, is_active, metadata)
@@ -153,7 +154,14 @@ select
                     coalesce(w.instructions,'') || '|' || coalesce(w.rubric_key,'')),
   'private',
   true,
-  jsonb_build_object('registration','initial-migration','rubric_key',min(w.rubric_key))
+  jsonb_build_object(
+    'registration','initial-migration',
+    'rubric_key', min(w.rubric_key),
+    'assignment_count', count(*),
+    'assignment_ids', jsonb_agg(w.id::text order by w.created_at, w.id),
+    'published_assignment_count', count(*) filter (where w.status = 'published'),
+    'open_assignment_count', count(*) filter (where w.is_open_test = true)
+  )
 from public.writing_assignments w
 group by w.title, w.prompt, w.instructions, w.rubric_key
 on conflict (source_key) do update set
@@ -161,9 +169,10 @@ on conflict (source_key) do update set
   description = excluded.description,
   subject = coalesce(excluded.subject, public.test_catalog.subject),
   cefr_level = coalesce(excluded.cefr_level, public.test_catalog.cefr_level),
+  metadata = excluded.metadata,
   updated_at = now();
 
 -- Verification after applying:
 -- select source_kind, assessment_type, count(*) from public.test_catalog group by 1,2 order by 1,2;
--- select slug, title, subject, cefr_level, source_kind, source_path, source_table, publication_status
+-- select slug, title, subject, cefr_level, source_kind, source_path, source_table, publication_status, metadata
 -- from public.test_catalog order by title;
