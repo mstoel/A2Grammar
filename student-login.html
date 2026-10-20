@@ -41,7 +41,7 @@ label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width
 <h3 class="section-title">Completed teacher-assigned work</h3><div id="teacherCompletedList"></div>
 <h3 class="section-title">Completed self-selected assessments</h3><div id="completedList"></div>
 <div class="dashboard-actions" id="dashboardActions">
-<a id="openTestsLink" href="student-portal.html?view=open">Browse Open Assessments</a>
+<a id="openTestsLink" href="student-portal.html?view=open">Browse Assessments</a>
 </div>
 <button id="signout" class="signout" type="button">Sign out</button>
 </section>
@@ -77,12 +77,6 @@ async function loadDashboard(){
   $('assignedList').innerHTML=assigned.length?assigned.map(a=>taskCard(a,false)).join(''):'<div class="empty">You have no teacher-assigned work to complete right now.</div>';
   $('teacherCompletedList').innerHTML=completed.length?completed.map(a=>taskCard(a,true)).join(''):'<div class="empty">Completed teacher-assigned work and scores will appear here. Work awaiting marking will show Pending score.</div>';
   $('completedList').innerHTML=selfSelected.length?selfSelected.map(a=>taskCard({...a,kind:'Grammar diagnostic'},true)).join(''):'<div class="empty">Your self-selected assessments and full reports will appear here after you complete them.</div>';
-  const actions=$('dashboardActions');
-  if(actions){
-    actions.querySelectorAll('a:not(#openTestsLink)').forEach(a=>a.remove());
-    if(assigned.some(a=>a.kind==='Writing')||completed.some(a=>a.kind==='Writing')){const a=document.createElement('a');a.href='writing-student.html';a.textContent='Writing workspace';actions.append(a);}
-    if(assigned.some(a=>a.kind==='Grammar diagnostic')||completed.some(a=>a.kind==='Grammar diagnostic')){const a=document.createElement('a');a.href='student-diagnostic.html';a.textContent='A2 Grammar Diagnostic';actions.append(a);}
-  }
   dashboardStatus('Your assignments are up to date.','good');
  }catch(e){dashboardStatus('Signed in, but the dashboard could not load: '+e.message,'bad');if(/sign in again|session has expired/i.test(e.message)){localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);token='';$('portal').classList.add('hidden');$('login').classList.remove('hidden')}}
 }
