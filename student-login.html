@@ -12,8 +12,8 @@ header{padding:22px 18px;text-align:center}header .mark{width:52px;height:52px;d
 main{width:min(100% - 28px,440px);margin:22px auto 36px;flex:1}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:clamp(20px,5vw,30px);box-shadow:0 16px 40px #1725540b}.card h2{margin:0 0 4px;font-size:23px}.sub{margin:0 0 22px;color:var(--muted);font-size:14px}
 label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width:100%;min-height:50px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font:inherit;font-size:16px;color:var(--ink);background:white}input:focus{outline:3px solid #c7d2fe;border-color:var(--brand)}button{width:100%;min-height:50px;margin-top:20px;border:0;border-radius:12px;background:var(--brand);color:white;font:inherit;font-weight:750;cursor:pointer}button:disabled{opacity:.65;cursor:wait}.status{display:none;padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:14px;overflow-wrap:anywhere}.status.show{display:block}.status.bad{background:#fef2f2;color:#991b1b}.status.good{background:#ecfdf5;color:#065f46}.hint{margin:17px 0 0;color:var(--muted);font-size:13px;text-align:center}.footer{text-align:center;color:var(--muted);font-size:12px;padding:0 18px 22px}.footer a{color:#4338ca;text-decoration:none}.hidden{display:none!important}.portal.hidden{display:none!important}.welcome{font-size:14px;color:var(--muted)}.links{display:grid;gap:10px;margin-top:18px}.links a{display:block;text-decoration:none;border:1px solid var(--line);border-radius:12px;padding:13px 14px;color:var(--ink);font-weight:700}.links a span{display:block;font-size:13px;color:var(--muted);font-weight:400}.signout{background:#eef2ff;color:#3730a3;margin-top:14px}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.stat{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:9px 11px}.stat strong{display:block;font-size:21px}.stat span{font-size:11px;color:var(--muted)}.section-title{margin:16px 0 6px;font-size:16px}.task{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:7px 0}.task-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.task h3{margin:0 0 3px;font-size:15px}.task p{margin:3px 0;color:var(--muted);font-size:12px}.tag{display:inline-block;border-radius:99px;background:#eef2ff;color:#3730a3;padding:3px 7px;font-size:11px;font-weight:750;white-space:nowrap}.scorebar{height:6px;background:#e8edf5;border-radius:99px;overflow:hidden;margin:7px 0 4px}.scorebar span{display:block;height:100%;background:#4f46e5;border-radius:99px}.empty{padding:11px;border:1px dashed #cbd5e1;border-radius:10px;color:var(--muted);font-size:12px}.dashboard-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.dashboard-actions a{flex:1;min-width:145px;text-align:center;background:#eef2ff;color:#3730a3;border-radius:9px;padding:9px;text-decoration:none;font-weight:700;font-size:13px}
 @media(max-width:520px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.task-head{display:block}.task-head .tag{margin-top:5px;white-space:normal}}
-@media(min-width:760px){body{min-height:100vh}header{padding:14px 24px}header .mark{width:40px;height:40px;margin-bottom:6px}main{width:min(100% - 48px,1180px);margin:10px auto 20px}.card{padding:18px}.portal{display:grid;grid-template-columns:minmax(0,1fr);gap:0}.portal h2,.portal>.sub,.portal>#dashboardStatus{grid-column:1/-1}.stats{max-width:560px}.portal #assignedList,.portal #completedList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.portal .section-title{margin-top:14px}.task{margin:0}.portal .dashboard-actions{justify-content:flex-start}.portal .signout{width:auto;min-width:140px;justify-self:end}}
-@media(min-width:1100px){main{width:min(100% - 64px,1400px)}.portal #assignedList,.portal #completedList{grid-template-columns:repeat(3,minmax(0,1fr))}.portal{padding:22px 26px}}@media(prefers-reduced-motion:no-preference){.card{animation:rise .25s ease-out}@keyframes rise{from{opacity:.7;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}}
+@media(min-width:760px){body{min-height:100vh}header{padding:14px 24px}header .mark{width:40px;height:40px;margin-bottom:6px}main{width:min(100% - 48px,1180px);margin:10px auto 20px}.card{padding:18px}.portal{display:grid;grid-template-columns:minmax(0,1fr);gap:0}.portal h2,.portal>.sub,.portal>#dashboardStatus{grid-column:1/-1}.stats{max-width:560px}.portal #assignedList,.portal #teacherCompletedList,.portal #completedList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.portal .section-title{margin-top:14px}.task{margin:0}.portal .dashboard-actions{justify-content:flex-start}.portal .signout{width:auto;min-width:140px;justify-self:end}}
+@media(min-width:1100px){main{width:min(100% - 64px,1400px)}.portal #assignedList,.portal #teacherCompletedList,.portal #completedList{grid-template-columns:repeat(3,minmax(0,1fr))}.portal{padding:22px 26px}}@media(prefers-reduced-motion:no-preference){.card{animation:rise .25s ease-out}@keyframes rise{from{opacity:.7;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}}
 </style>
 </head>
 <body>
@@ -37,10 +37,11 @@ label{display:block;font-size:14px;font-weight:750;margin:16px 0 6px}input{width
 <div class="stat"><strong id="completedCount">0</strong><span>Completed</span></div>
 <div class="stat"><strong id="averageScore">—</strong><span>Average score</span></div>
 </div>
-<h3 class="section-title">Assigned assignments</h3><div id="assignedList"></div>
-<h3 class="section-title">Completed assignments</h3><div id="completedList"></div>
+<h3 class="section-title">Teacher-assigned work to complete</h3><div id="assignedList"></div>
+<h3 class="section-title">Completed teacher-assigned work</h3><div id="teacherCompletedList"></div>
+<h3 class="section-title">Completed self-selected assessments</h3><div id="completedList"></div>
 <div class="dashboard-actions" id="dashboardActions">
-<a id="openTestsLink" href="student-portal.html">Open tests</a><a href="student-portal.html">Assigned tests</a>
+<a id="openTestsLink" href="student-portal.html?view=open">Browse Assessments</a>
 </div>
 <button id="signout" class="signout" type="button">Sign out</button>
 </section>
@@ -60,26 +61,22 @@ function taskCard(a,completed=false){
  const score=Number.isFinite(Number(a.score))&&a.score!==null?Math.max(0,Math.min(100,Number(a.score))):null;
  const href=a.kind==='Writing'?'writing-student.html?assignmentId='+encodeURIComponent(a.id):completed&&a.resultId?'student-result.html?type='+(a.kind==='Grammar diagnostic'?'diagnostic':'attempt')+'&id='+encodeURIComponent(a.resultId):a.kind==='Grammar diagnostic'?'student-diagnostic.html':'student-portal.html';
  const waiting=!completed&&a.available===false;
- const label=completed?(score===null?'Submitted · awaiting score':score+'%'):(waiting?(a.opensAt?'Opens '+new Date(a.opensAt).toLocaleString():'Not available yet'):(a.supported===false&&a.kind!=='Writing'?'Not available yet':'Not started'));
- return '<article class="task"><div class="task-head"><div><h3>'+esc(a.title)+'</h3><p>'+esc(a.description||a.kind||'Assignment')+'</p></div><span class="tag">'+esc(label)+'</span></div>'+(completed&&score!==null?'<div class="scorebar" role="img" aria-label="Score '+score+' percent"><span style="width:'+score+'%"></span></div><p>'+score+'% score'+(a.completedAt?' · Completed '+new Date(a.completedAt).toLocaleDateString():'')+'</p>':'')+(waiting?'<p>'+esc(a.opensAt?'Available from '+new Date(a.opensAt).toLocaleString():'This task is not available yet')+'</p>':'<div style="margin-top:10px"><a href="'+href+'" style="color:#4338ca;font-weight:700;text-decoration:none">'+(completed?'View result':'Open assignment')+' →</a></div>')+'</article>'
+ const label=completed?(score===null?'Pending score':score+'%'):(waiting?(a.opensAt?'Opens '+new Date(a.opensAt).toLocaleString():'Not available yet'):(a.supported===false&&a.kind!=='Writing'?'Not available yet':'Not started'));
+ return '<article class="task"><div class="task-head"><div><h3>'+esc(a.title)+'</h3><p>'+esc(a.description||a.kind||'Assignment')+'</p></div><span class="tag">'+esc(label)+'</span></div>'+(completed&&score!==null?'<div class="scorebar" role="img" aria-label="Score '+score+' percent"><span style="width:'+score+'%"></span></div><p>'+score+'% score'+(a.completedAt?' · Completed '+new Date(a.completedAt).toLocaleDateString():'')+'</p>':'')+(waiting?'<p>'+esc(a.opensAt?'Available from '+new Date(a.opensAt).toLocaleString():'This task is not available yet')+'</p>':'<div style="margin-top:10px"><a href="'+href+'" style="color:#4338ca;font-weight:700;text-decoration:none">'+(completed?'Full Report':'Open assignment')+' →</a></div>')+'</article>'
 }
 async function loadDashboard(){
  try{
   const d=await api({action:'dashboard'},true);
-  const all=[...(d.assessments||[]),...(d.writing||[]),...(d.diagnostics||[])];
-  const completed=all.filter(a=>a.completed),assigned=all.filter(a=>!a.completed);
+  const teacherItems=[...(d.assessments||[]),...(d.writing||[])];
+  const selfSelected=d.diagnostics||[];
+  const completed=teacherItems.filter(a=>a.completed),assigned=teacherItems.filter(a=>!a.completed);
   $('classLabel').textContent=d.className?'Class: '+d.className:'Your student dashboard';
   $('assignedCount').textContent=assigned.length;$('completedCount').textContent=completed.length;
-  const scores=completed.map(a=>a.score).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))).map(Number);
+  const scores=[...completed,...selfSelected].map(a=>a.score).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))).map(Number);
   $('averageScore').textContent=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)+'%':'—';
-  $('assignedList').innerHTML=assigned.length?assigned.map(a=>taskCard(a,false)).join(''):'<div class="empty">You have no outstanding assignments right now. Nice work!</div>';
-  $('completedList').innerHTML=completed.length?completed.map(a=>taskCard(a,true)).join(''):'<div class="empty">Your completed assignments will appear here, with a score bar when a score is available.</div>';
-  const actions=$('dashboardActions');
-  if(actions){
-    actions.querySelectorAll('a:not(#openTestsLink)').forEach(a=>a.remove());
-    if(assigned.some(a=>a.kind==='Writing')||completed.some(a=>a.kind==='Writing')){const a=document.createElement('a');a.href='writing-student.html';a.textContent='Writing workspace';actions.append(a);}
-    if(assigned.some(a=>a.kind==='Grammar diagnostic')||completed.some(a=>a.kind==='Grammar diagnostic')){const a=document.createElement('a');a.href='student-diagnostic.html';a.textContent='A2 Grammar Diagnostic';actions.append(a);}
-  }
+  $('assignedList').innerHTML=assigned.length?assigned.map(a=>taskCard(a,false)).join(''):'<div class="empty">You have no teacher-assigned work to complete right now.</div>';
+  $('teacherCompletedList').innerHTML=completed.length?completed.map(a=>taskCard(a,true)).join(''):'<div class="empty">Completed teacher-assigned work and scores will appear here. Work awaiting marking will show Pending score.</div>';
+  $('completedList').innerHTML=selfSelected.length?selfSelected.map(a=>taskCard({...a,kind:'Grammar diagnostic'},true)).join(''):'<div class="empty">Your self-selected assessments and full reports will appear here after you complete them.</div>';
   dashboardStatus('Your assignments are up to date.','good');
  }catch(e){dashboardStatus('Signed in, but the dashboard could not load: '+e.message,'bad');if(/sign in again|session has expired/i.test(e.message)){localStorage.removeItem(TOKEN);sessionStorage.removeItem(TOKEN);token='';$('portal').classList.add('hidden');$('login').classList.remove('hidden')}}
 }
