@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grade 5 Mathematics — Decimals Review</title>
+<style>
+:root{--ink:#17233b;--muted:#64748b;--line:#e3e8f2;--bg:#f5f7fc;--brand:#4f46e5}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}header{background:linear-gradient(120deg,#18264a,#3730a3);color:#fff;padding:24px 18px}header>div,main{max-width:850px;margin:auto}header a{color:#e0e7ff;text-decoration:none}h1{margin:14px 0 4px;font-size:clamp(25px,4vw,34px)}header p{margin:0;color:#e0e7ff}main{padding:22px 16px 50px}.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px;margin-bottom:15px}.muted{color:var(--muted);font-size:14px}.q{padding:17px 0;border-bottom:1px solid var(--line)}.q:last-child{border-bottom:0}.option{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:9px;margin:7px 0;cursor:pointer}.option input{margin-top:5px}.option:has(input:checked){border-color:#818cf8;background:#eef2ff}button{border:0;border-radius:10px;background:var(--brand);color:white;font:inherit;font-weight:750;padding:11px 16px;cursor:pointer}.result{padding:16px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;margin-top:16px}.feedback{font-size:14px;padding:10px 12px;margin-top:8px;border-radius:8px;background:#f1f5f9}.correct{background:#ecfdf5}.wrong{background:#fef2f2}.topline{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}.pill{display:inline-block;background:#eef2ff;color:#3730a3;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:750}
+</style></head><body><header><div><a href="student-portal.html?view=open">← Back to Open Tests</a><h1>Grade 5 Mathematics: Decimals</h1><p>Review Test 1 · 20 multiple-choice questions</p></div></header><main><section class="card"><div class="topline"><span class="pill">Grade 5 Math</span><span class="muted">20 questions · 1 point each</span></div><p>Choose the best answer for each question. Check your work before submitting.</p><p class="muted">Topics: decimal place value, comparing and ordering, patterns, dividing by 10 and 100, fractions as decimals, rounding, decimal operations, doubles and halves.</p></section><form id="quiz" class="card"><div id="questions"></div><button type="submit">Submit answers</button><div id="result" aria-live="polite"></div></form></main>
+<script>
+const qs=[
+{q:"What is the value of the digit 7 in 4.73?",o:["7 ones","7 tenths","7 hundredths","7 thousandths"],a:1,e:"The first digit after the decimal point is the tenths digit."},
+{q:"Which decimal means 6 tenths and 4 hundredths?",o:["6.4","0.64","0.604","6.04"],a:1,e:"6 tenths is 0.6 and 4 hundredths is 0.04; together they make 0.64."},
+{q:"In 6.284, which digit is in the hundredths place?",o:["2","4","6","8"],a:3,e:"The digits after the decimal are tenths (2), hundredths (8), then thousandths (4)."},
+{q:"Which list is in order from smallest to largest?",o:["0.35, 0.4, 0.405, 0.5","0.4, 0.35, 0.5, 0.405","0.5, 0.405, 0.4, 0.35","0.35, 0.405, 0.4, 0.5"],a:0,e:"Write 0.4 as 0.400 to compare the decimals."},
+{q:"Which comparison is correct?",o:["3.08 > 3.8","2.67 < 2.607","5.09 < 5.1","0.72 > 0.8"],a:2,e:"5.1 is 5.10, which is greater than 5.09."},
+{q:"What number comes next? 1.2, 1.5, 1.8, 2.1, ___",o:["2.2","2.3","2.4","2.5"],a:2,e:"The pattern increases by 0.3 each time."},
+{q:"What is 4.86 rounded to the nearest tenth?",o:["4.8","4.9","4.86","5.0"],a:1,e:"The hundredths digit is 6, so round the tenths digit up."},
+{q:"What is 7.346 rounded to the nearest hundredth?",o:["7.35","7.34","7.30","7.4"],a:0,e:"The thousandths digit is 6, so 7.34 rounds up to 7.35."},
+{q:"What is 8.7 ÷ 10?",o:["87","0.87","8.07","0.087"],a:1,e:"Dividing by 10 moves each digit one place to the right in place value."},
+{q:"What is 46.2 ÷ 100?",o:["4.62","0.462","0.0462","4620"],a:1,e:"Dividing by 100 makes the number one hundred times smaller: 0.462."},
+{q:"Which fraction is equal to 0.75?",o:["7/10","3/4","1/4","75/1000"],a:1,e:"0.75 is 75/100, which simplifies to 3/4."},
+{q:"What decimal is equal to 3/5?",o:["0.3","0.35","0.6","0.8"],a:2,e:"3 ÷ 5 = 0.6."},
+{q:"What is 12.45 + 3.8?",o:["15.83","16.15","16.25","50.45"],a:2,e:"Line up the decimal points: 12.45 + 3.80 = 16.25."},
+{q:"What is 9.2 − 4.67?",o:["4.53","5.47","4.63","5.53"],a:0,e:"Write 9.2 as 9.20, then subtract 4.67."},
+{q:"What is 2.4 × 3?",o:["0.72","6.2","7.2","72"],a:2,e:"24 tenths multiplied by 3 equals 72 tenths, or 7.2."},
+{q:"What is 1.25 × 4?",o:["4.5","5","5.25","50"],a:1,e:"1.25 doubled is 2.5; doubled again is 5."},
+{q:"What is 8.4 ÷ 2?",o:["2.4","4.02","4.2","6.2"],a:2,e:"Half of 8.4 is 4.2."},
+{q:"What is 6.3 ÷ 3?",o:["2.1","2.3","3.1","21"],a:0,e:"6.3 divided by 3 equals 2.1."},
+{q:"What is double 3.75?",o:["6.5","7.5","7.05","8.5"],a:1,e:"3.75 + 3.75 = 7.50."},
+{q:"What is half of 9.6?",o:["3.8","4.8","5.3","4.6"],a:1,e:"9.6 ÷ 2 = 4.8."}
+];
+const host=document.getElementById('questions');
+host.innerHTML=qs.map((q,i)=>'<section class="q" id="q'+i+'"><strong>'+(i+1)+'. '+q.q+'</strong>'+q.o.map((o,j)=>'<label class="option"><input type="radio" name="q'+i+'" value="'+j+'"><span><strong>'+String.fromCharCode(65+j)+'.</strong> '+o+'</span></label>').join('')+'</section>').join('');
+document.getElementById('quiz').addEventListener('submit',e=>{e.preventDefault();let score=0,answered=0;qs.forEach((q,i)=>{const chosen=document.querySelector('input[name="q'+i+'"]:checked');const old=document.querySelector('#q'+i+' .feedback');if(old)old.remove();const fb=document.createElement('div');fb.className='feedback '+(chosen&&Number(chosen.value)===q.a?'correct':'wrong');if(chosen){answered++;if(Number(chosen.value)===q.a)score++;}fb.textContent=(chosen&&Number(chosen.value)===q.a?'Correct. ':'Correct answer: '+String.fromCharCode(65+q.a)+'. '+q.o[q.a]+'. ')+q.e;document.querySelector('#q'+i).appendChild(fb)});const pct=Math.round(score/qs.length*100);document.getElementById('result').innerHTML='<div class="result"><h2>Test complete</h2><p><strong>Score: '+score+' / '+qs.length+' ('+pct+'%)</strong></p><p>You answered '+answered+' of '+qs.length+' questions.</p><p>Review the feedback under each question, then try again to improve your score.</p></div>';document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});});
+</script></body></html>
