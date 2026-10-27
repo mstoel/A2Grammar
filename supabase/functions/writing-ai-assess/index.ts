@@ -16,8 +16,9 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!url || !anonKey || !serviceKey) return json({ error: "Supabase function configuration is incomplete." }, 500);
-  if (!geminiKey) return json({ error: "AI marking is not configured yet. The administrator must add the GEMINI_API_KEY secret and redeploy this function." }, 503);
+  if (!geminiKey && !openRouterKey) return json({ error: "AI marking is not configured. Add GEMINI_API_KEY and/or OPENROUTER_API_KEY to Supabase Edge Function secrets." }, 503);
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
@@ -111,32 +112,113 @@ Deno.serve(async (req) => {
       if (node.required) out.required = node.required;
       return out;
     };
-    const aiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
-      method: "POST",
-      headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Return exactly one criterion for each rubric criterion, in the exact same order. Set rubricIndex to the zero-based position of that criterion in the supplied rubric (first criterion is 0), copy its name and maximum exactly, and never merge, rename, omit, or reorder criteria. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level." }]
-        },
-        contents: [{
-          role: "user",
-          parts: [{ text: "Assess this essay using this JSON data only:\\n" + JSON.stringify(promptData) }]
-        }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-          responseSchema: toGeminiSchema(schema)
+    const systemPrompt = "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Return exactly one criterion for each rubric criterion, in the exact same order. Set rubricIndex to the zero-based position of that criterion in the supplied rubric (first criterion is 0), copy its name and maximum exactly, and never merge, rename, omit, or reorder criteria. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level.";
+    const userPrompt = "Assess this essay using this JSON data only:\\n" + JSON.stringify(promptData);
+    const toGeminiSchema = (node: any): any => {
+      const out: any = {};
+      if (node.type) out.type = String(node.type).toUpperCase();
+      if (node.description) out.description = node.description;
+      if (node.properties) {
+        out.properties = {};
+        for (const [key, value] of Object.entries(node.properties)) out.properties[key] = toGeminiSchema(value);
+      }
+      if (node.items) out.items = toGeminiSchema(node.items);
+      if (node.required) out.required = node.required;
+      return out;
+    };
+
+    let raw = "";
+    let providerErrors: string[] = [];
+    // Retry only transient Gemini capacity/rate-limit/server errors, then use the free OpenRouter model router.
+    if (geminiKey) {
+      for (let attempt = 0; attempt < 2 && !raw; attempt++) {
+        try {
+          const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+            method: "POST",
+            headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+              generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: toGeminiSchema(schema) }
+            })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (response.ok) {
+            raw = data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("") || "";
+            if (!raw) providerErrors.push("Gemini returned an empty assessment.");
+          } else {
+            const message = String(data?.error?.message || "Gemini request failed.");
+            providerErrors.push("Gemini (" + response.status + "): " + message);
+            const transient = response.status === 408 || response.status === 429 || response.status >= 500 ||
+              /high demand|overload|temporar|resource_exhausted/i.test(message);
+            if (!transient) break;
+          }
+        } catch (error) {
+          providerErrors.push("Gemini network error: " + (error instanceof Error ? error.message : String(error)));
         }
-      })
-    });
-    const aiJson = await aiResponse.json().catch(() => ({}));
-    if (!aiResponse.ok) {
-      const message = aiJson?.error?.message || "The AI provider could not assess this essay.";
-      return json({ error: message }, 502);
+        if (!raw && attempt === 0) await new Promise((resolve) => setTimeout(resolve, 700));
+      }
     }
-    const raw = aiJson?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("");
-    if (!raw) return json({ error: aiJson?.promptFeedback?.blockReason || "The AI returned an empty assessment." }, 502);
-    const draft = JSON.parse(raw);
+
+    let providerUsed = "Gemini";
+    if (!raw && openRouterKey) {
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + openRouterKey,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://eduassess.pages.dev",
+            "X-Title": "EduAssess Writing Assessment"
+          },
+          body: JSON.stringify({
+            model: "openrouter/free",
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt + " Return only valid JSON matching the requested assessment structure." },
+              { role: "user", content: userPrompt + "\\nRequired JSON structure: " + JSON.stringify(schema) }
+            ]
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+          raw = data?.choices?.[0]?.message?.content || "";
+          providerUsed = "OpenRouter free model";
+          if (!raw) providerErrors.push("OpenRouter returned an empty assessment.");
+        } else {
+          providerErrors.push("OpenRouter (" + response.status + "): " + String(data?.error?.message || "request failed"));
+        }
+      } catch (error) {
+        providerErrors.push("OpenRouter network error: " + (error instanceof Error ? error.message : String(error)));
+      }
+    }
+    if (!raw) return json({
+      error: "AI assessment failed. No rubric scores were changed. " + providerErrors.join(" | "),
+      retryable: true
+    }, 502);
+
+    let draft: any;
+    try {
+      draft = JSON.parse(raw);
+    } catch {
+      return json({ error: providerUsed + " returned invalid JSON. No rubric scores were changed.", retryable: true }, 502);
+    }
+    const returnedCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
+    if (returnedCriteria.length !== rubric.length) {
+      return json({ error: providerUsed + " returned " + returnedCriteria.length + " rubric criteria, but this assignment requires " + rubric.length + ". No rubric scores were changed.", retryable: true }, 502);
+    }
+    for (let i = 0; i < rubric.length; i++) {
+      const item = returnedCriteria[i];
+      const expectedMax = Number(rubric[i].max) || 0;
+      const score = Number(item?.score);
+      const max = Number(item?.max);
+      if (!item || (item.rubricIndex !== undefined && Number(item.rubricIndex) !== i) ||
+          !Number.isFinite(score) || score < 0 || score > expectedMax ||
+          (Number.isFinite(max) && max !== expectedMax)) {
+        return json({ error: providerUsed + " returned invalid scores for rubric criterion " + (i + 1) + ". No rubric scores were changed.", retryable: true }, 502);
+      }
+    }
     const normalizeCriterion = (value: unknown) => String(value || "").toLowerCase()
       .replace(/organisation/g, "organization").replace(/[^a-z0-9]+/g, " ").trim();
     const returnedCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
