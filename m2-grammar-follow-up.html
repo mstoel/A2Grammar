@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>M2 Grammar Follow-Up Test | EduAssess</title>
+<style>
+:root{--ink:#17233b;--muted:#64748b;--line:#e3e8f2;--bg:#f5f7fc;--brand:#4f46e5;--good:#047857;--bad:#b91c1c}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}header{background:linear-gradient(120deg,#18264a,#3730a3);color:white;padding:24px 18px}header>div,main{max-width:900px;margin:auto}header a{color:#e0e7ff;text-decoration:none}h1{font-size:clamp(26px,4vw,36px);margin:12px 0 5px}header p{margin:0;color:#e0e7ff}main{padding:22px 16px 50px}.card{background:white;border:1px solid var(--line);border-radius:15px;padding:20px;margin-bottom:16px}.muted,.small{color:var(--muted);font-size:14px}.pill{display:inline-block;background:#eef2ff;color:#3730a3;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:750}.q{padding:17px 0;border-bottom:1px solid var(--line)}.q:last-child{border-bottom:0}.option{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:9px;margin:7px 0;cursor:pointer}.option input{margin-top:5px}.option:has(input:checked){border-color:#818cf8;background:#eef2ff}button{border:0;border-radius:10px;background:var(--brand);color:white;font:inherit;font-weight:750;padding:11px 16px;cursor:pointer}.feedback{font-size:14px;padding:10px 12px;margin-top:8px;border-radius:8px;background:#f1f5f9}.correct{background:#ecfdf5;color:#065f46}.wrong{background:#fef2f2;color:#991b1b}.result{padding:16px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;margin-top:16px}.section-title{margin:0 0 6px}.bar{height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:6px}.bar span{display:block;height:100%;background:#4f46e5}.catrow{padding:12px 0;border-bottom:1px solid var(--line)}.catrow:last-child{border-bottom:0}.topline{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}@media(max-width:600px){.card{padding:15px}}
+</style></head><body><header><div><a href="student-portal.html?view=open">← Back to Open Tests</a><h1>M2 English Grammar Follow-Up</h1><p>Targeted practice with explanations + mixed review</p></div></header>
+<main><section class="card"><div class="topline"><span class="pill">Mathayom 2 · Grammar</span><span class="muted">48 questions · 48 points</span></div><p>This follow-up focuses on the eight grammar areas identified for review. Part A gives explanations after you submit. Part B is mixed and shuffled; it gives no explanations so you must choose the rule yourself.</p><p class="muted">Each category has exactly 6 questions: 4 focused questions in Part A and 2 mixed questions in Part B. Your results will show a separate score for every category.</p></section>
+<form id="quiz"><section class="card"><h2 class="section-title">Part A — Focused practice</h2><p class="muted">Four questions per category. Read the short rule reminder, then answer the questions.</p><div id="partA"></div></section>
+<section class="card"><h2 class="section-title">Part B — Mixed review</h2><p class="muted">Questions appear in random order. Category names and explanations are hidden until after submission.</p><div id="partB"></div></section><section class="card"><button type="submit">Submit all answers</button><div id="result" aria-live="polite"></div></section></form></main>
+<script>
+const cats=[
+{id:"pspc",name:"1. Present Simple vs Present Continuous",rule:"Use the present simple for routines and facts; use am/is/are + verb-ing for actions happening now. Some verbs, such as understand, are not normally used in continuous forms.",qs:[
+["My sister usually _____ to school by bus, but today my father is driving her.",["is going","goes","go","going"],1,"“Usually” signals a routine, so use the present simple: goes."],
+["Be quiet! The students _____ an important test right now.",["take","takes","are taking","took"],2,"“Right now” describes an action in progress: are + taking."],
+["I _____ what you mean. Could you explain it again?",["am not understanding","don't understand","doesn't understand","not understand"],1,"Understand is normally a stative verb here, so use don't understand."],
+["Why _____ you _____ my notebook? I need it for my homework.",["do / using","are / use","does / use","are / using"],3,"For an action happening now, use are + subject + verb-ing."]
+]},
+{id:"psneg",name:"2. Present Simple — Negatives and Questions",rule:"Use do/does + subject + base verb for questions, and don't/doesn't + base verb for negatives. After does or doesn't, never add -s to the main verb.",qs:[
+["_____ your brother play football every weekend?",["Does","Do","Is","Has"],0,"Brother is singular, so use Does. The main verb stays play."],
+["Mia _____ like spicy food, so she always orders something mild.",["don't","isn't","doesn't","hasn't"],2,"Use doesn't with a singular subject, followed by the base verb like."],
+["Where _____ your parents usually _____ their groceries?",["does / buy","do / buy","do / buys","are / buy"],1,"Parents is plural: do + subject + base verb."],
+["Tom doesn't _____ his homework before dinner.",["does","doing","to do","do"],3,"After doesn't, use the base form do."]
+]},
+{id:"pastcont",name:"3. Past Continuous",rule:"Use was/were + verb-ing for an action that was in progress at a time in the past. Use was with I/he/she/it and were with you/we/they.",qs:[
+["At eight o'clock last night, I _____ for my English exam.",["studied","am studying","was studying","study"],2,"A specific time in the past shows an action in progress: was studying."],
+["While the teacher was explaining the answer, two students _____ to each other.",["were talking","was talking","talked","are talking"],0,"Two students is plural, so use were talking."],
+["At 6 p.m. yesterday, _____ your mother cooking dinner?",["Did","Was","Were","Is"],1,"Use Was + singular subject + verb-ing in a past continuous question."],
+["We _____ outside at lunchtime because it was raining heavily.",["wasn't playing","didn't playing","weren't playing","weren't play"],2,"The negative past continuous is were not + verb-ing."]
+]},
+{id:"psaffirm",name:"4. Present Simple — Affirmative",rule:"Use the base verb with I/you/we/they and plural subjects. With he/she/it or a singular noun, most verbs take -s or -es.",qs:[
+["My best friend _____ English and Thai very well.",["speak","speaking","are speaking","speaks"],3,"My best friend is singular, so the verb takes -s: speaks."],
+["Water _____ at 100°C under normal atmospheric pressure.",["boils","boil","is boiling","boiling"],0,"Scientific facts use the present simple; water is singular."],
+["The school bus _____ in front of the main gate every morning.",["stop","stops","stopping","stopes"],1,"The singular subject takes -s: stops."],
+["My parents _____ dinner together every evening.",["eats","eating","eat","is eating"],2,"Parents is plural, so use the base verb eat."]
+]},
+{id:"future",name:"5. Future Forms — Going To vs Present Continuous",rule:"Use going to for intentions and predictions based on present evidence. Use the present continuous for future arrangements that have been organised.",qs:[
+["Look at those dark clouds! It _____ soon.",["rains","is raining yesterday","is going to rain","rain"],2,"Dark clouds are present evidence for the prediction: going to rain."],
+["We _____ our cousins at the shopping mall at 3 p.m. tomorrow. We've already arranged it.",["are meeting","meet","met","are going meet"],0,"An agreed plan is a future arrangement: are meeting."],
+["I have bought flour, eggs, and chocolate. I _____ a cake this afternoon.",["baked","am going to bake","bake yesterday","am bake"],1,"The ingredients support an intention: am going to bake."],
+["Jane has a dentist appointment at 10 a.m. tomorrow. She _____ the dentist then.",["sees yesterday","will seeing","is see","is seeing"],3,"An appointment is an arranged future event: is seeing."]
+]},
+{id:"pastneg",name:"6. Past Simple — Negatives and Questions",rule:"Use did + subject + base verb for questions and didn't + base verb for negatives. The past form is used in positive statements, not after did/didn't.",qs:[
+["_____ you watch the football match last night?",["Do","Did","Were","Have"],1,"Last night signals the past. Use Did + subject + base verb."],
+["We _____ the museum yesterday because it was closed.",["didn't visit","didn't visited","weren't visit","don't visited"],0,"After didn't, use the base verb visit."],
+["Where _____ Anna buy her new shoes?",["does","was","did","is"],2,"Use did for a past-simple question; buy stays in its base form."],
+["My brother didn't _____ his phone at home; he left it at school.",["left","leaving","leaves","leave"],3,"After didn't, use leave, not the past form left."]
+]},
+{id:"timeprep",name:"7. Prepositions of Time",rule:"Use at for exact clock times, on for days and dates, and in for months, years, and parts of the day.",qs:[
+["Our final examination is _____ Friday morning.",["at","in","on","by"],2,"Use on with a day: on Friday morning."],
+["My family moved to Thailand _____ 2015.",["on","in","at","from"],1,"Use in with years: in 2015."],
+["The lesson starts _____ 8:30 a.m.",["at","on","in","during"],0,"Use at with an exact clock time."],
+["I usually do my homework _____ the evening.",["on","at","by","in"],3,"Use in with parts of the day: in the evening."]
+]},
+{id:"pastmix",name:"8. Past Simple vs Past Continuous",rule:"Use the past continuous for an action in progress and the past simple for a shorter completed event that interrupts it or happens during it.",qs:[
+["I _____ my homework when the lights suddenly went out.",["did","was doing","am doing","do"],1,"Was doing is the ongoing action; went out is the shorter interrupting event."],
+["While we _____ home, we saw an accident.",["walked","are walking","were walking","walk"],2,"Were walking describes the action in progress when we saw the accident."],
+["The phone _____ while I was taking a shower.",["rang","was ringing every day","rings","is ringing"],0,"Rang is the short event that happened during the longer action."],
+["While Dad was cooking, Mum _____ the table.",["was setting","setted","is setting","sets"],0,"Was setting describes an action in progress at the same time. The past form of set is set, not setted."]
+]}
+];
+// Two additional questions per category. They are deliberately mixed and category labels stay hidden.
+const mixed=[
+{c:"future",q:"We've booked the hotel and train tickets. We _____ to Bangkok on Friday.",o:["travelled","are travelling","travel yesterday","are travel"],a:1,e:"A booked trip is an arranged future event: are travelling."},
+{c:"pspc",q:"Look! The dog _____ your sandwich!",o:["eats","eat","is eating","ate every day"],a:2,e:"Look! points to an action happening now: is eating."},
+{c:"timeprep",q:"The school concert begins _____ 6:30 p.m.",o:["on","in","at","by"],a:2,e:"Use at with an exact clock time."},
+{c:"pastmix",q:"The children _____ outside when it started to rain.",o:["played","are playing","were playing","play"],a:2,e:"Were playing is the ongoing action interrupted by the rain starting."},
+{c:"psneg",q:"My sister doesn't _____ coffee before school.",o:["drinks","drank","drinking","drink"],a:3,e:"After doesn't, use the base verb drink."},
+{c:"pastcont",q:"What _____ you doing at 9 p.m. last night?",o:["was","were","did","are"],a:1,e:"Use were with you in the past continuous: were you doing."},
+{c:"psaffirm",q:"Our science teacher _____ us interesting experiments every month.",o:["show","shows","showing","are showing"],a:1,e:"The singular subject teacher takes -s: shows."},
+{c:"pastneg",q:"_____ Lisa call you after school yesterday?",o:["Does","Was","Did","Has"],a:2,e:"Use Did for a past-simple question, followed by the base verb call."},
+{c:"pastmix",q:"While the teacher _____ the instructions, a student raised her hand.",o:["was explaining","explained every day","is explaining","explains"],a:0,e:"Was explaining is the ongoing action; raised is the shorter event."},
+{c:"pspc",q:"I usually _____ tea, but today I'm drinking coffee.",o:["am drinking","drink","drinks","drinking"],a:1,e:"Usually describes a habit, so use the present simple drink."},
+{c:"future",q:"Watch out! You _____ that glass!",o:["dropped","are going to drop","drops","drop yesterday"],a:1,e:"The warning is based on present evidence, so use are going to drop."},
+{c:"psaffirm",q:"The Earth _____ around the Sun.",o:["move","moving","moves","is move"],a:2,e:"A general scientific fact uses the present simple; Earth is singular."},
+{c:"pastcont",q:"At midnight, they _____ still _____ for the bus.",o:["was / waiting","were / waiting","did / waiting","are / wait"],a:1,e:"They is plural, so use were + verb-ing."},
+{c:"psneg",q:"Where _____ your father work?",o:["do","does","is","did every day"],a:1,e:"Father is singular, so use does; the main verb work stays in base form."},
+{c:"timeprep",q:"Our school holiday starts _____ October.",o:["on","at","in","during"],a:2,e:"Use in with months: in October."},
+{c:"pastneg",q:"We _____ the match last night because we had too much homework.",o:["don't watch","didn't watched","didn't watch","weren't watch"],a:2,e:"Use didn't + base verb for a past-simple negative."}
+];
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const letters=["A","B","C","D"],partA=document.getElementById("partA"),partB=document.getElementById("partB");
+let all=[];
+function renderQuestion(q,index,section,showCategory){const key=section+"_"+index;all.push({...q,key,section});return '<div class="q" id="'+key+'">'+(showCategory?'<span class="pill">'+q.catName+'</span>':'')+'<p><strong>'+index+'. '+q.q+'</strong></p>'+q.o.map((opt,j)=>'<label class="option"><input type="radio" name="'+key+'" value="'+j+'"><span><strong>'+letters[j]+'.</strong> '+opt+'</span></label>').join('')+'<div class="fb"></div></div>'}
+let n=1;
+cats.forEach(cat=>{partA.insertAdjacentHTML("beforeend",'<h3>'+cat.name+'</h3><p class="muted">'+cat.rule+'</p>');cat.qs.forEach(row=>{partA.insertAdjacentHTML("beforeend",renderQuestion({cat:cat.id,catName:cat.name,q:row[0],o:row[1],a:row[2],e:row[3]},n++,"A",false))})});
+const shuffled=shuffle(mixed.map(q=>({...q,catName:cats.find(c=>c.id===q.c).name,cat:q.c})));
+shuffled.forEach((q,i)=>partB.insertAdjacentHTML("beforeend",renderQuestion(q,i+33,"B",false)));
+document.getElementById("quiz").addEventListener("submit",e=>{e.preventDefault();let score=0,answered=0;const stats=Object.fromEntries(cats.map(c=>[c.id,{correct:0,total:0}]));all.forEach(q=>{const chosen=document.querySelector('input[name="'+q.key+'"]:checked');const fb=document.querySelector("#"+q.key+" .fb");const correct=chosen&&Number(chosen.value)===q.a;stats[q.cat].total++;if(chosen){answered++;if(correct){score++;stats[q.cat].correct++}}if(q.section==="A"){fb.className="fb feedback "+(correct?"correct":"wrong");fb.textContent=(correct?"Correct. ":"Not quite. Correct answer: "+letters[q.a]+". "+q.o[q.a]+". ")+q.e}else{fb.className="fb";fb.textContent=""}});const pct=Math.round(score/48*100);let rows=cats.map(c=>{const s=stats[c.id],p=Math.round(s.correct/6*100);return '<div class="catrow"><div class="topline"><strong>'+c.name+'</strong><strong>'+s.correct+' / 6 ('+p+'%)</strong></div><div class="bar"><span style="width:'+p+'%"></span></div></div>'}).join("");document.getElementById("result").innerHTML='<div class="result"><h2>Results</h2><p><strong>Total: '+score+' / 48 ('+pct+'%)</strong></p><p>Answered '+answered+' of 48 questions.</p><h3>Scores by grammar category</h3>'+rows+'<p class="muted">Each category contains 6 questions: 4 focused questions and 2 mixed-review questions. Part A includes explanations; Part B is scored without explanations.</p></div>';document.querySelectorAll('input[type=radio]').forEach(el=>el.disabled=true);document.querySelector('button[type=submit]').disabled=true;document.getElementById("result").scrollIntoView({behavior:"smooth",block:"start"})});
+</script></body></html>
