@@ -204,12 +204,12 @@ Deno.serve(async (req) => {
     } catch {
       return json({ error: providerUsed + " returned invalid JSON. No rubric scores were changed.", retryable: true }, 502);
     }
-    const returnedCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
-    if (returnedCriteria.length !== rubric.length) {
-      return json({ error: providerUsed + " returned " + returnedCriteria.length + " rubric criteria, but this assignment requires " + rubric.length + ". No rubric scores were changed.", retryable: true }, 502);
+    const validationCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
+    if (validationCriteria.length !== rubric.length) {
+      return json({ error: providerUsed + " returned " + validationCriteria.length + " rubric criteria, but this assignment requires " + rubric.length + ". No rubric scores were changed.", retryable: true }, 502);
     }
     for (let i = 0; i < rubric.length; i++) {
-      const item = returnedCriteria[i];
+      const item = validationCriteria[i];
       const expectedMax = Number(rubric[i].max) || 0;
       const score = Number(item?.score);
       const max = Number(item?.max);
