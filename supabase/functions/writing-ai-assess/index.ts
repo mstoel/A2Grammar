@@ -143,7 +143,10 @@ Deno.serve(async (req) => {
             if (!transient) break;
           }
         } catch (error) {
-          providerErrors.push("Gemini network error: " + (error instanceof Error ? error.message : String(error)));
+          const message = error instanceof Error ? error.message : String(error);
+          providerErrors.push("Gemini network error: " + message);
+          // A timeout is unlikely to improve on an immediate retry; fall through to OpenRouter instead.
+          if (/timed out|timeout|abort/i.test(message)) break;
         }
         if (!raw && attempt === 0) await new Promise((resolve) => setTimeout(resolve, 700));
       }
@@ -168,7 +171,8 @@ Deno.serve(async (req) => {
               { role: "system", content: systemPrompt + " Return only valid JSON matching the requested assessment structure." },
               { role: "user", content: userPrompt + "\\nRequired JSON structure: " + JSON.stringify(schema) }
             ]
-          })
+          }),
+          signal: AbortSignal.timeout(45000)
         });
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
