@@ -154,36 +154,55 @@ Deno.serve(async (req) => {
 
     let providerUsed = "Gemini";
     if (!raw && openRouterKey) {
-      try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + openRouterKey,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://eduassess.pages.dev",
-            "X-Title": "EduAssess Writing Assessment"
-          },
-          body: JSON.stringify({
+      // Some free routed models return no content when JSON mode is requested.
+      // Try JSON mode first, then retry once without it and parse the model's plain JSON response.
+      for (let openRouterAttempt = 0; openRouterAttempt < 2 && !raw; openRouterAttempt++) {
+        try {
+          const requestBody: any = {
             model: "openrouter/free",
             temperature: 0.2,
-            response_format: { type: "json_object" },
+            max_tokens: 6000,
             messages: [
-              { role: "system", content: systemPrompt + " Return only valid JSON matching the requested assessment structure." },
+              { role: "system", content: systemPrompt + " Return only valid JSON matching the requested assessment structure. Do not use markdown fences or add text before or after the JSON." },
               { role: "user", content: userPrompt + "\\nRequired JSON structure: " + JSON.stringify(schema) }
             ]
-          }),
-          signal: AbortSignal.timeout(45000)
-        });
-        const data = await response.json().catch(() => ({}));
-        if (response.ok) {
-          raw = data?.choices?.[0]?.message?.content || "";
-          providerUsed = "OpenRouter free model";
-          if (!raw) providerErrors.push("OpenRouter returned an empty assessment.");
-        } else {
-          providerErrors.push("OpenRouter (" + response.status + "): " + String(data?.error?.message || "request failed"));
+          };
+          if (openRouterAttempt === 0) requestBody.response_format = { type: "json_object" };
+          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": "Bearer " + openRouterKey,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://eduassess.pages.dev",
+              "X-Title": "EduAssess Writing Assessment"
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(45000)
+          });
+          const data = await response.json().catch(() => ({}));
+          if (response.ok) {
+            const message = data?.choices?.[0]?.message;
+            const content = message?.content;
+            if (typeof content === "string") raw = content.trim();
+            else if (Array.isArray(content)) raw = content.map((part: any) => typeof part === "string" ? part : String(part?.text || "")).join("").trim();
+            if (raw) {
+              providerUsed = "OpenRouter free model";
+            } else {
+              const reason = String(data?.choices?.[0]?.finish_reason || "unknown");
+              providerErrors.push("OpenRouter returned no text (finish reason: " + reason + ", attempt " + (openRouterAttempt + 1) + ").");
+            }
+          } else {
+            const message = String(data?.error?.message || "request failed");
+            providerErrors.push("OpenRouter (" + response.status + "): " + message);
+            // Retry once without JSON mode if a routed model rejects that response format.
+            if (openRouterAttempt === 0 && /response.?format|json.?object|unsupported|not support/i.test(message)) continue;
+            break;
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          providerErrors.push("OpenRouter network error: " + message);
+          break;
         }
-      } catch (error) {
-        providerErrors.push("OpenRouter network error: " + (error instanceof Error ? error.message : String(error)));
       }
     }
     if (!raw) return json({
