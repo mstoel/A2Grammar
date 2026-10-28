@@ -114,19 +114,6 @@ Deno.serve(async (req) => {
     };
     const systemPrompt = "You are a careful English writing assessor supporting a teacher. Assess only against the exact rubric supplied. Return exactly one criterion for each rubric criterion, in the exact same order. Set rubricIndex to the zero-based position of that criterion in the supplied rubric (first criterion is 0), copy its name and maximum exactly, and never merge, rename, omit, or reorder criteria. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level.";
     const userPrompt = "Assess this essay using this JSON data only:\\n" + JSON.stringify(promptData);
-    const toGeminiSchema = (node: any): any => {
-      const out: any = {};
-      if (node.type) out.type = String(node.type).toUpperCase();
-      if (node.description) out.description = node.description;
-      if (node.properties) {
-        out.properties = {};
-        for (const [key, value] of Object.entries(node.properties)) out.properties[key] = toGeminiSchema(value);
-      }
-      if (node.items) out.items = toGeminiSchema(node.items);
-      if (node.required) out.required = node.required;
-      return out;
-    };
-
     let raw = "";
     let providerErrors: string[] = [];
     // Retry only transient Gemini capacity/rate-limit/server errors, then use the free OpenRouter model router.
