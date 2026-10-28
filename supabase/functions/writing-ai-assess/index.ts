@@ -212,9 +212,23 @@ Deno.serve(async (req) => {
 
     let draft: any;
     try {
-      draft = JSON.parse(raw);
+      // Accept plain JSON, fenced JSON, or a short preamble followed by a JSON object.
+      let candidate = raw.trim().replace(/^\uFEFF/, "");
+      candidate = candidate.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+      try {
+        draft = JSON.parse(candidate);
+      } catch {
+        const firstBrace = candidate.indexOf("{");
+        const lastBrace = candidate.lastIndexOf("}");
+        if (firstBrace < 0 || lastBrace <= firstBrace) throw new Error("No complete JSON object found.");
+        draft = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+      }
     } catch {
-      return json({ error: providerUsed + " returned invalid JSON. No rubric scores were changed.", retryable: true }, 502);
+      const preview = raw.trim().slice(0, 120).replace(/[\r\n]+/g, " ");
+      return json({
+        error: providerUsed + " returned text that was not valid JSON (response length: " + raw.length + "). No rubric scores were changed. " + (preview ? "Response began: " + preview : "The response was empty."),
+        retryable: true
+      }, 502);
     }
     const validationCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
     if (validationCriteria.length !== rubric.length) {
