@@ -17,8 +17,9 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
   const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
+  const groqKey = Deno.env.get("GROQ_API_KEY");
   if (!url || !anonKey || !serviceKey) return json({ error: "Supabase function configuration is incomplete." }, 500);
-  if (!geminiKey && !openRouterKey) return json({ error: "AI marking is not configured. Add GEMINI_API_KEY and/or OPENROUTER_API_KEY to Supabase Edge Function secrets." }, 503);
+  if (!geminiKey && !groqKey && !openRouterKey) return json({ error: "AI marking is not configured. Add GEMINI_API_KEY, GROQ_API_KEY, and/or OPENROUTER_API_KEY to Supabase Edge Function secrets." }, 503);
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
@@ -153,6 +154,45 @@ Deno.serve(async (req) => {
     }
 
     let providerUsed = "Gemini";
+    // Use Groq as the direct-provider fallback before the free-model router.
+    if (!raw && groqKey) {
+      try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + groqKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-oss-20b",
+            temperature: 0.2,
+            max_completion_tokens: 6000,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt + " Return only valid JSON matching the requested assessment structure. Do not use markdown fences or add text before or after the JSON." },
+              { role: "user", content: userPrompt + "\\nRequired JSON structure: " + JSON.stringify(schema) }
+            ]
+          }),
+          signal: AbortSignal.timeout(35000)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+          const content = data?.choices?.[0]?.message?.content;
+          if (typeof content === "string") raw = content.trim();
+          else if (Array.isArray(content)) raw = content.map((part: any) => typeof part === "string" ? part : String(part?.text || "")).join("").trim();
+          if (raw) {
+            providerUsed = "Groq (" + String(data?.model || "openai/gpt-oss-20b") + ")";
+          } else {
+            providerErrors.push("Groq returned no text (finish reason: " + String(data?.choices?.[0]?.finish_reason || "unknown") + ").");
+          }
+        } else {
+          providerErrors.push("Groq (" + response.status + "): " + String(data?.error?.message || "request failed"));
+        }
+      } catch (error) {
+        providerErrors.push("Groq network error: " + (error instanceof Error ? error.message : String(error)));
+      }
+    }
+
     if (!raw && openRouterKey) {
       // Some free routed models return no content when JSON mode is requested.
       // Try JSON mode first, then retry once without it and parse the model's plain JSON response.
