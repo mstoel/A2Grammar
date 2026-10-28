@@ -181,15 +181,26 @@ Deno.serve(async (req) => {
           });
           const data = await response.json().catch(() => ({}));
           if (response.ok) {
-            const message = data?.choices?.[0]?.message;
+            const choice = data?.choices?.[0];
+            const message = choice?.message;
             const content = message?.content;
             if (typeof content === "string") raw = content.trim();
             else if (Array.isArray(content)) raw = content.map((part: any) => typeof part === "string" ? part : String(part?.text || "")).join("").trim();
             if (raw) {
-              providerUsed = "OpenRouter free model";
+              providerUsed = "OpenRouter free model (" + String(data?.model || "model unknown") + ")";
             } else {
-              const reason = String(data?.choices?.[0]?.finish_reason || "unknown");
-              providerErrors.push("OpenRouter returned no text (finish reason: " + reason + ", attempt " + (openRouterAttempt + 1) + ").");
+              const reason = String(choice?.finish_reason || "unknown");
+              const nativeReason = String(choice?.native_finish_reason || "unknown");
+              const messageKeys = message && typeof message === "object" ? Object.keys(message).join(",") : "no message object";
+              const reasoningLength = typeof message?.reasoning === "string" ? message.reasoning.length : 0;
+              const apiError = String(data?.error?.message || "");
+              providerErrors.push(
+                "OpenRouter returned no text (model: " + String(data?.model || "unknown") +
+                ", finish: " + reason + ", native finish: " + nativeReason +
+                ", message fields: " + messageKeys + ", reasoning chars: " + reasoningLength +
+                (apiError ? ", API error: " + apiError : "") +
+                ", attempt " + (openRouterAttempt + 1) + ")."
+              );
             }
           } else {
             const message = String(data?.error?.message || "request failed");
