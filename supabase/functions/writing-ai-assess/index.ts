@@ -127,7 +127,9 @@ Deno.serve(async (req) => {
               systemInstruction: { parts: [{ text: systemPrompt }] },
               contents: [{ role: "user", parts: [{ text: userPrompt }] }],
               generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: toGeminiSchema(schema) }
-            })
+            }),
+            // Bound each provider call so a stalled upstream request cannot hold the Edge Function open until gateway timeout.
+            signal: AbortSignal.timeout(25000)
           });
           const data = await response.json().catch(() => ({}));
           if (response.ok) {
