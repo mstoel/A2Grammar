@@ -76,7 +76,7 @@ async function loadLearningData(){
  $('learningStudent').innerHTML='<option value="">All students</option>'+learningStudents.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.display_name||x.student_code)+' · '+esc(x.student_code)+'</option>').join('');
  if(learningStudents.some(x=>x.id===old))$('learningStudent').value=old;
  renderLearningDashboard();
- $('learningStatus').textContent='Loaded '+learningStudents.length+' students · '+learningDiagnostics.length+' grammar diagnostics · '+learningWriting.length+' writing submissions. Only reviewed writing scores count toward performance averages.';
+ $('learningStatus').textContent='Loaded '+learningStudents.length+' students · '+learningDiagnostics.length+' grammar diagnostics · '+learningWriting.length+' writing submissions · '+learningAttempts.length+' test attempts. Only reviewed writing scores count toward writing averages.';
 }
 function renderLearningDashboard(){
  const studentId=$('learningStudent').value;
