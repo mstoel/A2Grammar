@@ -91,28 +91,55 @@ Deno.serve(async (req) => {
       targetCefr,
       genre: String(assignment?.rubric?.genre || "general writing"),
       scoringCalibration: {
-        purpose: "Use the full score range fairly. Do not default to the middle and do not make all criterion scores similar. Score each criterion independently from evidence.",
+        purpose: "Apply a criterion-by-criterion analytic assessment. The total is the sum of independent criterion scores, not a holistic impression. Reward demonstrated strengths even when another skill is weak.",
         bands: [
-          "90-100% of criterion maximum: exceptional for the target CEFR level; clear, consistent control and/or notably effective achievement.",
-          "75-89%: strong achievement; meets the target-level expectations well, with only limited weaknesses.",
-          "60-74%: satisfactory/secure achievement; the main requirements are met, though noticeable weaknesses remain.",
-          "40-59%: developing achievement; some requirements are met, but weaknesses are frequent or meaningfully affect quality.",
-          "20-39%: limited achievement; only a small part of the criterion is demonstrated, with serious or persistent problems.",
-          "0-19%: very limited evidence for this criterion."
+          "90-100%: exceptional — notably effective, assured or original performance for this CEFR level in this criterion; the work stands out for clear, specific reasons. Minor imperfections may remain.",
+          "80-89%: very strong — consistently effective performance for this CEFR level; clear strengths outweigh limited weaknesses.",
+          "70-79%: competent to strong — the criterion is achieved well overall, with some noticeable weaknesses.",
+          "60-69%: developing but mostly successful — the main requirement is met, though weaknesses are frequent or visible.",
+          "40-59%: limited — partial achievement; weaknesses materially reduce the quality of this criterion.",
+          "20-39%: weak — only a small part of this criterion is demonstrated.",
+          "0-19%: very little relevant evidence for this criterion."
+        ],
+        scoringProcedure: [
+          "Step 1: Read the task prompt, instructions, target CEFR, genre and the exact rubric. Identify what each criterion measures before judging the essay.",
+          "Step 2: For each criterion, list only evidence relevant to that criterion. Do not let the overall impression or another criterion's weakness determine this score.",
+          "Step 3: Select the performance band for that criterion, then choose a precise score within the band based on consistency, quality and significance of evidence.",
+          "Step 4: Check the nearest band above and below. Evidence must explain why the chosen band is more accurate.",
+          "Step 5: Add the criterion scores. Do not apply an extra holistic deduction, hidden ceiling, or overall quality adjustment."
+        ],
+        criterionIsolation: [
+          "GRAMMAR ERRORS MUST BE DEDUCTED FROM GRAMMAR AND SENTENCE STRUCTURE ONLY, unless the rubric explicitly defines another criterion to include grammatical accuracy or the errors make the intended meaning genuinely impossible to understand.",
+          "Do not reduce task achievement, creativity, ideas, content, plot, organisation, cohesion or vocabulary merely because grammar is inaccurate.",
+          "A story can be exceptional in imagination, relevance, detail, engagement, plot development and ending while containing weak grammar. Score those strengths highly in the criteria that measure them; deduct grammar errors in the grammar criterion.",
+          "Do not penalise the same error twice. Spelling and punctuation belong in their own criterion when the rubric has one. Vocabulary measures word choice, range, precision and appropriacy, not grammatical correctness.",
+          "Only reduce organisation when the sequence, paragraphing, connections or overall structure are actually weak. Grammar mistakes alone are not evidence of poor organisation.",
+          "Only reduce task achievement when the response misses the prompt, lacks required content, is underdeveloped in relevant ideas, or fails to fulfil the task. Do not confuse language accuracy with task fulfilment.",
+          "If a criterion combines multiple skills in its written description, explain which part of the criterion is affected and avoid importing unrelated weaknesses."
+        ],
+        exceptionalWork: [
+          "Exceptional does not mean error-free, adult-like, or beyond the CEFR level. It means unusually effective for the student's target level and the task conditions.",
+          "For narrative task achievement, exceptional work may show an engaging premise, clear situation, purposeful character actions, well-developed connected events, effective tension or surprise, vivid relevant details, and a satisfying or deliberate ending.",
+          "For narrative organisation, exceptional work has a clear and controlled sequence, purposeful paragraphs or transitions, and events that connect naturally. A simple plot can be exceptional if it is handled very effectively; an elaborate twist is not required.",
+          "For vocabulary, exceptional work uses varied, vivid and precise words appropriately for the target level. Do not require rare or unnecessarily advanced vocabulary.",
+          "For grammar, exceptional work shows strong control and useful sentence variety for the target level. This is the criterion where grammar errors are counted.",
+          "For spelling and punctuation, assess only spelling, capitalisation and punctuation unless the supplied rubric explicitly says otherwise.",
+          "A criterion can score 90-100 even if another criterion scores much lower. Do not make all criterion scores converge."
+        ],
+        benchmarkAnchors: [
+          "Teacher-approved B1 timed narrative benchmark: 'The Spies and the Lab Monster' is an example of exceptional independent classroom storytelling. Its imaginative concept, developed sequence, engaging events and effective reveal/end should be recognised as high-level narrative achievement for B1. Small language errors should affect language-accuracy criteria, not erase its strengths in ideas or organisation.",
+          "Teacher-approved B1 narrative profile: 'Dave and Greg' demonstrates that an imaginative, relevant and understandable story with connected events can earn strong task-achievement and organisation scores even when grammar needs substantial correction. Do not let grammar weakness collapse the whole assessment.",
+          "These are qualitative calibration anchors, not fixed scores or templates. Compare the current essay's actual evidence and task; never award a score merely because it resembles a benchmark title or topic."
         ],
         rules: [
-          "These are descriptive bands, not quotas. Choose the band that best matches the evidence; do not force a target average or bell curve.",
-          "Do not cap a score simply because the writing is by a learner. Reward work that genuinely meets or exceeds the stated CEFR level.",
-          "Do not award high scores automatically. Frequent errors that make meaning difficult to understand should substantially affect the relevant criterion.",
-          "Penalise each weakness mainly under the criterion it belongs to. Do not repeatedly penalise the same grammar error under vocabulary, organisation, and spelling.",
-          "Judge spelling and punctuation separately from grammar and sentence structure. Judge vocabulary for range, appropriacy, and precision, not for using advanced words.",
-          "Judge organisation against the actual target CEFR level. For B1, expect a generally logical sequence, clear paragraphing, a recognisable beginning, development and ending, and a range of common linking expressions. Do not require advanced literary structure.",
-          "For B1 narrative tasks, reward a developed and coherent story with a clear situation, events that build on one another, some tension or conflict, and a purposeful ending. A simple plot can still score well when it is engaging and well developed; do not require an elaborate twist.",
-          "Use criterion-specific scores. A weakness in grammar must not automatically lower task achievement or vocabulary. A creative, relevant story may score strongly for task achievement even when language accuracy is weak.",
-          "Do not compress scores into the 40-59 band. Use 60-74 when the criterion is mostly achieved at B1 with noticeable but non-blocking weaknesses; use 75-89 when it is clearly strong for B1; use 20-39 only when evidence for that criterion is genuinely limited.",
-          "Before assigning each score, compare the essay with the relevant band and the criterion description. The evidence must explain why the score is in that band rather than the band immediately above or below.",
-          "Judge task achievement against the actual assignment prompt and instructions. Do not invent requirements that the prompt does not state.",
-          "Use the supplied criterion description and maximum points. Do not apply an unstated penalty or bonus."
+          "These are descriptive bands, not quotas. Never force a target average, bell curve or score distribution.",
+          "Do not cap a score because the writer is a learner. Judge performance against the stated CEFR level, not against native-speaker or adult professional writing.",
+          "Judge spelling and punctuation separately from grammar when the rubric separates them.",
+          "For B1 narratives, expect a generally logical sequence, a recognisable beginning, development and ending, and common linking expressions. Do not require advanced literary techniques.",
+          "Judge task achievement against the actual prompt and instructions. Do not invent requirements.",
+          "Use the supplied criterion description and maximum points. Return a score supported by specific evidence, not a vague overall impression.",
+          "Do not compress successful work into 40-59. Use 70-89 when the criterion is genuinely strong; reserve 90-100 for standout performance with identifiable evidence.",
+          "Word count is a criterion only if the supplied rubric explicitly makes it one. Never apply an unstated word-count penalty."
         ]
       },
       feedbackLanguageLevel: "Write all student-facing feedback at the same CEFR level as the task. A1: very short sentences, common words, one simple idea at a time, and clear examples. A2: simple, direct sentences and familiar vocabulary. B1: clear everyday English with some explanation and useful linking words. B2: more detailed, precise explanations and a wider range of vocabulary, while staying clear. C1: nuanced, precise explanations and more advanced language. Do not use language above the target level just to sound professional.",
@@ -139,7 +166,7 @@ Deno.serve(async (req) => {
       if (node.required) out.required = node.required;
       return out;
     };
-    const systemPrompt = "You are a careful, fair, well-calibrated English writing assessor supporting a teacher. Assess only against the exact rubric supplied and the actual assignment prompt. CALIBRATION IS ESSENTIAL: use the scoringCalibration bands and rules in the assessment data. Select a score based on the quality demonstrated for that specific criterion and target CEFR level. Do not cluster scores around 50%, do not give every criterion similar percentages, and do not apply a hidden overall penalty. Equally, do not inflate scores to be encouraging. Score each criterion independently and use the full range when justified by evidence. Avoid double-penalising the same weakness across criteria. For B1 narrative tasks, reward a developed and coherent story with a clear situation, logically connected events, some tension or conflict, and a purposeful ending. Do not require an elaborate twist or advanced literary techniques unless the task explicitly asks for them. Judge each rubric criterion independently: a grammar weakness must not automatically reduce task achievement or vocabulary. Assess only against the exact rubric supplied. Return exactly one criterion for each rubric criterion, in the exact same order. Set rubricIndex to the zero-based position of that criterion in the supplied rubric (first criterion is 0), copy its name and maximum exactly, and never merge, rename, omit, or reorder criteria. Scores must be numeric and within each criterion's maximum. Provide short, specific evidence from the essay; do not fabricate quotations or features. Word count is one criterion only: never reject an essay for being below the target length. Apply the rubric fairly to shorter work. Feedback is a draft for teacher approval, never a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: The target CEFR level is provided in the assessment data. Write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence, and suggestion using language appropriate to that exact CEFR level. A1 feedback must use very simple A1 English, short sentences, common words, and concrete examples; avoid abstract terms such as cohesion, register, and complexity unless explained simply. A2 feedback must be simple and direct. B1 feedback should be clear everyday English with brief explanations. B2 feedback can use more precise vocabulary and fuller explanations appropriate to B2. C1 feedback may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language. Keep the teacher-facing assessment accurate, but keep the wording of feedback at the student's target level.";
+    const systemPrompt = "You are an analytic English writing assessor. Follow the scoringCalibration procedure exactly. The assessment is criterion-referenced, not holistic: score each criterion only for the skill(s) named in that criterion. CRITICAL NON-TRANSFER RULE: grammar mistakes are deducted from the grammar/sentence-structure criterion, not task achievement, ideas, creativity, organisation or vocabulary. Do not lower those other scores because grammar is poor. Transfer an effect to another criterion only when the essay provides independent evidence of weakness in that other skill, or meaning is genuinely impossible to understand. A creative, coherent and engaging story can therefore receive very high scores for ideas/task achievement and organisation while receiving a much lower grammar score. Do not double-penalise. Exceptional means standout performance for the target CEFR level and task, not error-free writing; use 90-100 when specific evidence justifies it. Never impose a hidden overall penalty or score ceiling. First judge each criterion independently, then add the scores without adjustment. Use the exact supplied rubric and prompt. Return exactly one result for each rubric criterion in the exact same order. Set rubricIndex to its zero-based position, copy its name and maximum exactly, and never merge, rename, omit or reorder criteria. Scores must be numeric and within the criterion maximum. Evidence must be specific and grounded in the essay; do not invent quotations or features. Word count is a criterion only when the rubric explicitly says so. Feedback is a draft for teacher approval, not a final grade. Respond in the requested feedback language. CRITICAL LANGUAGE-LEVEL RULE: write every student-facing comment, strength, improvement, grammar explanation, vocabulary suggestion, criterion evidence and suggestion at the target CEFR level. A1 feedback uses very simple short sentences and common words; A2 is simple and direct; B1 is clear everyday English with brief explanations; B2 is more precise with fuller explanations; C1 may be nuanced and advanced. Do not explain to an A1 learner in B2/C1 language.";
     const userPrompt = "Assess this essay using this JSON data only:\\n" + JSON.stringify(promptData);
     let raw = "";
     let providerErrors: string[] = [];
