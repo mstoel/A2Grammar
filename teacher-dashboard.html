@@ -72,7 +72,9 @@ async function loadLearningData(){
  if(d.error){$('learningStatus').textContent='Could not load grammar diagnostics: '+d.error.message;return}
  if(w.error){$('learningStatus').textContent='Could not load writing results: '+w.error.message;return}
  if(s.error){$('learningStatus').textContent='Could not load students: '+s.error.message;return}
- if(a.error){$('learningStatus').textContent='Could not load test results: '+a.error.message;return}\n if(wa.error){$('learningStatus').textContent='Could not load writing assignment list: '+wa.error.message;return}\n if(aa.error){$('learningStatus').textContent='Could not load test assignment list: '+aa.error.message;return}
+ if(a.error){$('learningStatus').textContent='Could not load test results: '+a.error.message;return}
+ if(wa.error){$('learningStatus').textContent='Could not load writing assignment list: '+wa.error.message;return}
+ if(aa.error){$('learningStatus').textContent='Could not load test assignment list: '+aa.error.message;return}
  learningDiagnostics=d.data||[];learningWriting=w.data||[];learningStudents=s.data||[];learningAttempts=a.data||[];
  const oldStudent=$('learningStudent').value,oldClass=$('learningClass').value,oldAssignment=$('learningAssignment').value;
  $('learningClass').innerHTML='<option value="">All classes</option>'+classes.filter(c=>c.is_active).map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
@@ -82,7 +84,9 @@ async function loadLearningData(){
  const opts=[];
  for(const r of learningDiagnostics){const k=r.diagnostic_key||'Grammar diagnostic';opts.push({key:learningAssignmentKey('diagnostic',k),label:'Grammar diagnostic · '+k.replace(/-/g,' ')});}
  for(const r of learningAttempts){const id=r.assessment_id||r.engine_key||'test';opts.push({key:learningAssignmentKey('test',r.assessment_id||r.engine_key||'test'),label:'Test · '+(r.assessments?.title||r.engine_key||'Assessment')});}
- for(const r of wa.data||[])opts.push({key:learningAssignmentKey('writing',r.id),label:'Writing · '+r.title});\n for(const r of aa.data||[])if(r.assessment_id)opts.push({key:learningAssignmentKey('test',r.assessment_id),label:'Test · '+(r.assessments?.title||'Assessment')});\n for(const r of learningWriting){if(r.status==='reviewed'&&r.teacher_scores&&Number.isFinite(Number(r.teacher_scores.total)))opts.push({key:learningAssignmentKey('writing',r.assignment_id),label:'Writing · '+(r.writing_assignments?.title||'Writing assessment')});}
+ for(const r of wa.data||[])opts.push({key:learningAssignmentKey('writing',r.id),label:'Writing · '+r.title});
+ for(const r of aa.data||[])if(r.assessment_id)opts.push({key:learningAssignmentKey('test',r.assessment_id),label:'Test · '+(r.assessments?.title||'Assessment')});
+ for(const r of learningWriting){if(r.status==='reviewed'&&r.teacher_scores&&Number.isFinite(Number(r.teacher_scores.total)))opts.push({key:learningAssignmentKey('writing',r.assignment_id),label:'Writing · '+(r.writing_assignments?.title||'Writing assessment')});}
  const unique=[...new Map(opts.map(x=>[x.key,x])).values()].sort((x,y)=>x.label.localeCompare(y.label));
  $('learningAssignment').innerHTML='<option value="">All assignments</option>'+unique.map(x=>'<option value="'+esc(x.key)+'">'+esc(x.label)+'</option>').join('');
  if(unique.some(x=>x.key===oldAssignment))$('learningAssignment').value=oldAssignment;
@@ -162,7 +166,8 @@ async function bulkAddStudents(){
  if(!classId||!raw){status('Choose a class and paste the student list first.','bad');return}
  const cls=classes.find(c=>c.id===classId);if(!cls||!cls.is_active){status('Choose an active class.','bad');return}
  const parsed=[],seen=new Set(),invalid=[];
- raw.split(/\r?\n/).forEach((line,i)=>{const t=line.trim();if(!t||t.startsWith('#'))return;const parts=t.includes('\t')?t.split('\t'):t.split(',');if(parts.length<2){invalid.push('Line '+(i+1)+': expected nickname, student number');return}const name=parts[0].trim(),code=parts.slice(1).join(',').trim();if(!name||!code){invalid.push('Line '+(i+1)+': nickname or student number is empty');return}const k=code.toLowerCase();if(seen.has(k)){invalid.push('Line '+(i+1)+': duplicate student number in pasted list ('+code+')');return}seen.add(k);parsed.push({display_name:name,student_code:code})});
+ raw.split(/\r?
+/).forEach((line,i)=>{const t=line.trim();if(!t||t.startsWith('#'))return;const parts=t.includes('\t')?t.split('\t'):t.split(',');if(parts.length<2){invalid.push('Line '+(i+1)+': expected nickname, student number');return}const name=parts[0].trim(),code=parts.slice(1).join(',').trim();if(!name||!code){invalid.push('Line '+(i+1)+': nickname or student number is empty');return}const k=code.toLowerCase();if(seen.has(k)){invalid.push('Line '+(i+1)+': duplicate student number in pasted list ('+code+')');return}seen.add(k);parsed.push({display_name:name,student_code:code})});
  if(!parsed.length){host.innerHTML='<p class="muted">No valid students found. '+esc(invalid.join(' · '))+'</p>';return}
  const btn=$('bulkAddStudents');btn.disabled=true;host.innerHTML='<p class="muted">Checking existing records and creating students…</p>';
  try{
@@ -178,7 +183,8 @@ async function bulkAddStudents(){
   }
   if(created.length){
    const csvRows=[['Nickname','Student number','Temporary access code'],...created.map(x=>[x.display_name,x.student_code,x.access_code])];
-   const csv=csvRows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+   const csv=csvRows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r
+');
    const link=document.createElement('a');link.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));link.download='EduAssess-'+cls.name.replace(/[^a-z0-9_-]+/gi,'-')+'-student-access-codes.csv';link.textContent='Download password list (CSV)';link.className='btn';link.style.marginRight='8px';
    const wrap=document.createElement('div');wrap.className='successbox';wrap.style.marginTop='12px';wrap.innerHTML='<strong>Created '+created.length+' student(s).</strong><p>Download this file now. Access codes are shown only in this result and are stored in Supabase as hashes, not readable passwords.</p>';
    wrap.appendChild(link);const print=document.createElement('button');print.className='alt';print.textContent='Print login cards (A4)';print.onclick=()=>printCards(created,activeSchool.name,cls.name);wrap.appendChild(print);
