@@ -90,10 +90,15 @@ function renderLearningDashboard(){
  const avg=a=>a.length?Math.round(a.reduce((n,x)=>n+x,0)/a.length):null;
  const metrics=[['Students',students.length],['Grammar average',avg(grammarPct)===null?'—':avg(grammarPct)+'%'],['Writing average',avg(writingPct)===null?'—':avg(writingPct)+'%'],['Reviewed essays',reviewed.length]];
  $('learningMetrics').innerHTML=metrics.map(([label,value])=>'<div class="learning-metric"><span class="muted">'+label+'</span><strong>'+value+'</strong></div>').join('');
- const bars=[['Latest grammar diagnostic',avg(grammarPct)],['Teacher-reviewed writing',avg(writingPct)]];
- $('learningChart').innerHTML=bars.map(([label,value])=>'<div style="margin:14px 0"><div style="display:flex;justify-content:space-between;gap:8px"><strong>'+label+'</strong><span>'+(value===null?'No data':value+'%')+'</span></div><div class="learning-bar"><span style="width:'+(value??0)+'%"></span></div></div>').join('')+'<p class="muted">Averages use each student’s latest grammar diagnostic and all teacher-reviewed writing submissions in this class.</p>';
+ const grouped=[];
+ const dg=new Map();for(const r of diagnostics){const key=r.diagnostic_key||'Grammar diagnostic';const a=dg.get(key)||[];a.push(Number(r.overall_percent));dg.set(key,a)}
+ for(const [name,values] of dg)grouped.push({name:'Grammar · '+name.replace(/-adaptive-grammar-v1/g,'').replace(/-/g,' '),value:avg(values.filter(Number.isFinite)),kind:'Grammar'});
+ const wg=new Map();for(const r of reviewed){const name=r.writing_assignments?.title||'Writing assessment';const a=wg.get(name)||[];a.push(100*Number(r.teacher_scores.total)/(Number(r.teacher_scores.max)||100));wg.set(name,a)}
+ for(const [name,values] of wg)grouped.push({name:'Writing · '+name,value:avg(values.filter(Number.isFinite)),kind:'Writing'});
+ const chartRows=grouped.slice(0,8);
+ $('learningChart').innerHTML=chartRows.length?chartRows.map(x=>'<div style="margin:13px 0"><div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:13px">'+esc(x.name)+'</strong><span>'+x.value+'%</span></div><div class="learning-bar"><span style="width:'+Math.max(0,Math.min(100,x.value))+'%;background:'+(x.kind==='Grammar'?'#4f46e5':'#0f766e')+'"></span></div></div>').join('')+'<div class="muted">Average score by assessment · purple = grammar · teal = teacher-reviewed writing. Select one student above to filter the chart.</div>':'<div class="empty">No completed assessments to chart yet.</div>';
  const skillCounts=new Map();
- for(const r of diagnostics){for(const skill of (Array.isArray(r.report?.skills)?r.report.skills:[])){const p=pctValue(skill.percent);if(p===null)continue;const item=skillCounts.get(skill.name||skill.id||'Grammar skill')||{sum:0,n:0};item.sum+=p;item.n++;skillCounts.set(skill.name||skill.id||'Grammar skill',item)}}
+ for(const r of learningDiagnostics){for(const skill of (Array.isArray(r.report?.skills)?r.report.skills:[])){const p=pctValue(skill.percent);if(p===null)continue;const item=skillCounts.get(skill.name||skill.id||'Grammar skill')||{sum:0,n:0};item.sum+=p;item.n++;skillCounts.set(skill.name||skill.id||'Grammar skill',item)}}
  const weak=[...skillCounts.entries()].map(([name,x])=>({name,percent:x.sum/x.n})).sort((a,b)=>a.percent-b.percent).slice(0,5);
  $('classPlan').innerHTML=weak.length?weak.map(x=>'<div class="learning-row"><div><strong>'+esc(x.name)+'</strong><div class="learning-bar"><span style="width:'+x.percent+'%"></span></div></div><span class="learning-tag">'+Math.round(x.percent)+'% average</span></div>').join(''):'<div class="empty">No grammar skill breakdowns are available yet. Complete adaptive diagnostics to identify class priorities.</div>';
  $('learningStudents').innerHTML=students.map(st=>{
