@@ -69,6 +69,7 @@ async function bulkReassess(){
    }catch(error){failed++;row._bulkError=error instanceof Error?error.message:String(error);}
   }
   $('bulkStatus').textContent=(stopped?'Stopped after current essay. ':'Finished. ')+succeeded+' reassessed successfully; '+failed+' failed. Teacher-approved scores and feedback were not changed.';
+  renderWritingResults(window.subRows||[]);
   if(failed){
    const details=rows.filter(r=>r._bulkError).map(r=>(r.students?.display_name||r.students?.student_code||'Student')+': '+r._bulkError);
    $('bulkStatus').textContent+=' Errors: '+details.slice(0,4).join(' | ')+(details.length>4?' | and '+(details.length-4)+' more.':'');
