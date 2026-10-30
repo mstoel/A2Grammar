@@ -183,8 +183,7 @@ async function bulkAddStudents(){
   }
   if(created.length){
    const csvRows=[['Nickname','Student number','Temporary access code'],...created.map(x=>[x.display_name,x.student_code,x.access_code])];
-   const csv=csvRows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r
-');
+   const csv=csvRows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
    const link=document.createElement('a');link.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}));link.download='EduAssess-'+cls.name.replace(/[^a-z0-9_-]+/gi,'-')+'-student-access-codes.csv';link.textContent='Download password list (CSV)';link.className='btn';link.style.marginRight='8px';
    const wrap=document.createElement('div');wrap.className='successbox';wrap.style.marginTop='12px';wrap.innerHTML='<strong>Created '+created.length+' student(s).</strong><p>Download this file now. Access codes are shown only in this result and are stored in Supabase as hashes, not readable passwords.</p>';
    wrap.appendChild(link);const print=document.createElement('button');print.className='alt';print.textContent='Print login cards (A4)';print.onclick=()=>printCards(created,activeSchool.name,cls.name);wrap.appendChild(print);
