@@ -61,16 +61,18 @@ function learningAssignmentKey(kind,id){return kind+":"+id}
 async function loadLearningData(){
  if(!sb||!activeSchool){$('learningStatus').textContent='Choose a school to load results.';return}
  $('learningStatus').textContent='Loading all class and assessment results…';
- const [d,w,s,a]=await Promise.all([
+ const [d,w,s,a,wa,aa]=await Promise.all([
   sb.from('diagnostic_results').select('id,student_id,completed_at,overall_percent,correct_count,questions_answered,report,diagnostic_key,students(student_code,display_name,class_id)').eq('school_id',activeSchool.id).order('completed_at',{ascending:true}).limit(2000),
   sb.from('writing_submissions').select('id,student_id,assignment_id,class_id,status,submitted_text,draft_text,teacher_scores,ai_review,teacher_feedback,submitted_at,reviewed_at,students(student_code,display_name,class_id),writing_assignments(title,rubric)').eq('school_id',activeSchool.id).order('submitted_at',{ascending:true}).limit(2000),
   sb.from('students').select('id,student_code,display_name,class_id,is_active').eq('school_id',activeSchool.id).eq('is_active',true).order('student_code'),
-  sb.from('attempts').select('id,student_id,assessment_id,completed_at,score_percent,correct_count,questions_answered,engine_key,students!inner(student_code,display_name,class_id,school_id),assessments(title)').eq('students.school_id',activeSchool.id).order('completed_at',{ascending:true}).limit(2000)
+  sb.from('attempts').select('id,student_id,assessment_id,completed_at,score_percent,correct_count,questions_answered,engine_key,students!inner(student_code,display_name,class_id,school_id),assessments(title)').eq('students.school_id',activeSchool.id).order('completed_at',{ascending:true}).limit(2000),
+  sb.from('writing_assignments').select('id,title').eq('school_id',activeSchool.id).order('title'),
+  sb.from('assessment_assignments').select('assessment_id,assessments(title),classes(name)').eq('school_id',activeSchool.id).limit(1000)
  ]);
  if(d.error){$('learningStatus').textContent='Could not load grammar diagnostics: '+d.error.message;return}
  if(w.error){$('learningStatus').textContent='Could not load writing results: '+w.error.message;return}
  if(s.error){$('learningStatus').textContent='Could not load students: '+s.error.message;return}
- if(a.error){$('learningStatus').textContent='Could not load test results: '+a.error.message;return}
+ if(a.error){$('learningStatus').textContent='Could not load test results: '+a.error.message;return}\n if(wa.error){$('learningStatus').textContent='Could not load writing assignment list: '+wa.error.message;return}\n if(aa.error){$('learningStatus').textContent='Could not load test assignment list: '+aa.error.message;return}
  learningDiagnostics=d.data||[];learningWriting=w.data||[];learningStudents=s.data||[];learningAttempts=a.data||[];
  const oldStudent=$('learningStudent').value,oldClass=$('learningClass').value,oldAssignment=$('learningAssignment').value;
  $('learningClass').innerHTML='<option value="">All classes</option>'+classes.filter(c=>c.is_active).map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
@@ -80,7 +82,7 @@ async function loadLearningData(){
  const opts=[];
  for(const r of learningDiagnostics){const k=r.diagnostic_key||'Grammar diagnostic';opts.push({key:learningAssignmentKey('diagnostic',k),label:'Grammar diagnostic · '+k.replace(/-/g,' ')});}
  for(const r of learningAttempts){const id=r.assessment_id||r.engine_key||'test';opts.push({key:learningAssignmentKey('test',r.assessment_id||r.engine_key||'test'),label:'Test · '+(r.assessments?.title||r.engine_key||'Assessment')});}
- for(const r of learningWriting){if(r.status==='reviewed'&&r.teacher_scores&&Number.isFinite(Number(r.teacher_scores.total)))opts.push({key:learningAssignmentKey('writing',r.assignment_id),label:'Writing · '+(r.writing_assignments?.title||'Writing assessment')});}
+ for(const r of wa.data||[])opts.push({key:learningAssignmentKey('writing',r.id),label:'Writing · '+r.title});\n for(const r of aa.data||[])if(r.assessment_id)opts.push({key:learningAssignmentKey('test',r.assessment_id),label:'Test · '+(r.assessments?.title||'Assessment')});\n for(const r of learningWriting){if(r.status==='reviewed'&&r.teacher_scores&&Number.isFinite(Number(r.teacher_scores.total)))opts.push({key:learningAssignmentKey('writing',r.assignment_id),label:'Writing · '+(r.writing_assignments?.title||'Writing assessment')});}
  const unique=[...new Map(opts.map(x=>[x.key,x])).values()].sort((x,y)=>x.label.localeCompare(y.label));
  $('learningAssignment').innerHTML='<option value="">All assignments</option>'+unique.map(x=>'<option value="'+esc(x.key)+'">'+esc(x.label)+'</option>').join('');
  if(unique.some(x=>x.key===oldAssignment))$('learningAssignment').value=oldAssignment;
