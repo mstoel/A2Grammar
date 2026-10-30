@@ -116,15 +116,16 @@ function renderLearningDashboard(){
   return '<div class="learning-row"><div><strong>'+esc(st.display_name||st.student_code)+'</strong><div class="muted">'+esc(st.student_code)+' · Grammar: '+(g===null?'No result':g+'%')+' · Tests: '+(tp===null?'No result':tp+'%')+' · Writing: '+(wr===null?'No reviewed essay':wr+'%')+'</div></div><button type="button" class="alt" data-profile="'+esc(st.id)+'">View plan</button></div>';
  }).join('')||'<div class="empty">No active students in this class.</div>';
  document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{$('learningStudent').value=b.dataset.profile;renderLearningDashboard();$('studentPlan').scrollIntoView({behavior:'smooth',block:'start'});});
- renderStudentImprovementPlan(studentId?students[0]:null,diagnostics,writings);
+ renderStudentImprovementPlan(studentId?students[0]:null,diagnostics,writings,attempts);
 }
-function renderStudentImprovementPlan(student,diagnostics,writings){
+function renderStudentImprovementPlan(student,diagnostics,writings,attempts){
  const host=$('studentPlan');if(!student){host.innerHTML='<div class="empty">Select a student to build an individual improvement plan.</div>';return}
  const ds=diagnostics.filter(x=>x.student_id===student.id).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at));
  const ws=writings.filter(x=>x.student_id===student.id&&x.status==='reviewed').sort((a,b)=>new Date(b.reviewed_at||b.submitted_at)-new Date(a.reviewed_at||a.submitted_at));
  const weak=ds.flatMap(r=>(Array.isArray(r.report?.skills)?r.report.skills:[]).map(x=>({...x,sourceDate:r.completed_at}))).filter(x=>pctValue(x.percent)!==null).sort((a,b)=>a.percent-b.percent).slice(0,3);
  const ai=ws.flatMap(r=>Array.isArray(r.ai_review?.criteria)?r.ai_review.criteria:[]).filter(x=>x.suggestion||x.evidence).slice(0,3);
- const items=[...weak.map(x=>({title:x.name||x.id||'Grammar skill',detail:'Grammar diagnostic: '+Number(x.percent)+'%. Practise this skill with targeted exercises.'})),...ai.map(x=>({title:x.name||'Writing criterion',detail:String(x.suggestion||x.evidence)}))];
+ const lowTests=(attempts||[]).filter(r=>r.student_id===student.id&&pctValue(r.score_percent)!==null&&Number(r.score_percent)<70).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at)).slice(0,2);
+ const items=[...weak.map(x=>({title:x.name||x.id||'Grammar skill',detail:'Grammar diagnostic: '+Number(x.percent)+'%. Practise this skill with targeted exercises.'})),...lowTests.map(x=>({title:x.assessments?.title||'Grammar test',detail:'Latest recorded test score: '+Number(x.score_percent)+'%. Review missed questions and practise the tested topics.'})),...ai.map(x=>({title:x.name||'Writing criterion',detail:String(x.suggestion||x.evidence)}))];
  host.innerHTML='<div class="learning-row"><div><strong>'+esc(student.display_name||student.student_code)+'</strong><div class="muted">Based on '+ds.length+' grammar diagnostic(s) and '+ws.length+' reviewed writing submission(s).</div></div></div>'+(items.length?items.map(x=>'<div class="learning-row"><div><strong>'+esc(x.title)+'</strong><p class="muted">'+esc(x.detail)+'</p></div><span class="learning-tag">Practice</span></div>').join(''):'<div class="empty">Not enough recorded evidence for a specific improvement plan yet. Complete a grammar diagnostic or teacher-reviewed writing task first.</div>');
 }
 
