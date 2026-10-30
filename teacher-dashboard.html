@@ -55,21 +55,23 @@
 </div></div></div><p class="notice">Privacy and safety: only add student information you are authorized to manage. Student sign-in and supported multiple-choice delivery are available through the Student Portal when the Edge Function is deployed and configured. PIN verification, strict exam controls, and student-facing result history are not implemented yet. Do not use this first release for high-stakes exams.</p>
 </main><script type="module">
 const SUPABASE_URL='https://wappdiduuulrrnaczaxl.supabase.co';const SUPABASE_PUBLISHABLE_KEY='sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2';const $=id=>document.getElementById(id);let sb=null,user=null,schools=[],activeSchool=null,classes=[],ownedAssessments=[];
-let learningDiagnostics=[],learningWriting=[],learningStudents=[];
+let learningDiagnostics=[],learningWriting=[],learningStudents=[],learningAttempts=[];
 function pctValue(v){const n=Number(v);return Number.isFinite(n)?Math.max(0,Math.min(100,n)):null}
 async function loadLearningData(){
  const classId=$('learningClass').value;if(!sb||!activeSchool||!classId){$('learningStatus').textContent='Choose a class to load combined results.';return}
  $('learningStatus').textContent='Loading grammar and writing results…';
- const [d,w,s]=await Promise.all([
+ const [d,w,s,a]=await Promise.all([
   sb.from('diagnostic_results').select('id,student_id,completed_at,overall_percent,correct_count,questions_answered,report,diagnostic_key,students(student_code,display_name,class_id)').eq('school_id',activeSchool.id).order('completed_at',{ascending:true}).limit(1000),
   sb.from('writing_submissions').select('id,student_id,assignment_id,status,submitted_text,draft_text,teacher_scores,ai_review,teacher_feedback,submitted_at,reviewed_at,students(student_code,display_name,class_id),writing_assignments(title,rubric)').eq('school_id',activeSchool.id).eq('class_id',classId).order('submitted_at',{ascending:true}).limit(1000),
-  sb.from('students').select('id,student_code,display_name,class_id,is_active').eq('school_id',activeSchool.id).eq('class_id',classId).eq('is_active',true).order('student_code')
+  sb.from('students').select('id,student_code,display_name,class_id,is_active').eq('school_id',activeSchool.id).eq('class_id',classId).eq('is_active',true).order('student_code'),
+  sb.from('attempts').select('id,student_id,assessment_id,completed_at,score_percent,correct_count,questions_answered,engine_key,students!inner(student_code,display_name,class_id,school_id),assessments(title)').eq('students.school_id',activeSchool.id).eq('students.class_id',classId).order('completed_at',{ascending:true}).limit(1000)
  ]);
- if(d.error){$('learningStatus').textContent='Could not load grammar results: '+d.error.message;return}
+ if(d.error){$('learningStatus').textContent='Could not load grammar diagnostics: '+d.error.message;return}
  if(w.error){$('learningStatus').textContent='Could not load writing results: '+w.error.message;return}
  if(s.error){$('learningStatus').textContent='Could not load students: '+s.error.message;return}
+ if(a.error){$('learningStatus').textContent='Could not load test results: '+a.error.message;return}
  learningDiagnostics=(d.data||[]).filter(x=>x.students?.class_id===classId);
- learningWriting=w.data||[];learningStudents=s.data||[];
+ learningWriting=w.data||[];learningStudents=s.data||[];learningAttempts=a.data||[];
  const old=$('learningStudent').value;
  $('learningStudent').innerHTML='<option value="">All students</option>'+learningStudents.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.display_name||x.student_code)+' · '+esc(x.student_code)+'</option>').join('');
  if(learningStudents.some(x=>x.id===old))$('learningStudent').value=old;
@@ -82,21 +84,25 @@ function renderLearningDashboard(){
  const ids=new Set(students.map(x=>x.id));
  const diagnostics=learningDiagnostics.filter(x=>ids.has(x.student_id));
  const writings=learningWriting.filter(x=>ids.has(x.student_id));
+ const attempts=learningAttempts.filter(x=>ids.has(x.student_id));
  const latestBy=(rows,key)=>{const map=new Map();for(const r of rows){const old=map.get(r[key]);if(!old||new Date(r.completed_at||r.submitted_at||0)>new Date(old.completed_at||old.submitted_at||0))map.set(r[key],r)}return [...map.values()]};
  const latestD=latestBy(diagnostics,'student_id');
  const reviewed=writings.filter(r=>r.status==='reviewed'&&r.teacher_scores&&Number.isFinite(Number(r.teacher_scores.total)));
  const writingPct=reviewed.map(r=>{const max=Number(r.teacher_scores.max)||100;return max?100*Number(r.teacher_scores.total)/max:null}).filter(x=>x!==null);
+ const testPct=attempts.map(r=>pctValue(r.score_percent)).filter(x=>x!==null);
  const grammarPct=latestD.map(r=>pctValue(r.overall_percent)).filter(x=>x!==null);
  const avg=a=>a.length?Math.round(a.reduce((n,x)=>n+x,0)/a.length):null;
- const metrics=[['Students',students.length],['Grammar average',avg(grammarPct)===null?'—':avg(grammarPct)+'%'],['Writing average',avg(writingPct)===null?'—':avg(writingPct)+'%'],['Reviewed essays',reviewed.length]];
+ const metrics=[['Students',students.length],['Grammar average',avg(grammarPct)===null?'—':avg(grammarPct)+'%'],['Writing average',avg(writingPct)===null?'—':avg(writingPct)+'%'],['Test average',avg(testPct)===null?'—':avg(testPct)+'%']];
  $('learningMetrics').innerHTML=metrics.map(([label,value])=>'<div class="learning-metric"><span class="muted">'+label+'</span><strong>'+value+'</strong></div>').join('');
  const grouped=[];
  const dg=new Map();for(const r of diagnostics){const key=r.diagnostic_key||'Grammar diagnostic';const a=dg.get(key)||[];a.push(Number(r.overall_percent));dg.set(key,a)}
  for(const [name,values] of dg)grouped.push({name:'Grammar · '+name.replace(/-adaptive-grammar-v1/g,'').replace(/-/g,' '),value:avg(values.filter(Number.isFinite)),kind:'Grammar'});
  const wg=new Map();for(const r of reviewed){const name=r.writing_assignments?.title||'Writing assessment';const a=wg.get(name)||[];a.push(100*Number(r.teacher_scores.total)/(Number(r.teacher_scores.max)||100));wg.set(name,a)}
  for(const [name,values] of wg)grouped.push({name:'Writing · '+name,value:avg(values.filter(Number.isFinite)),kind:'Writing'});
+ const tg=new Map();for(const r of attempts){const name=r.assessments?.title||r.engine_key||'Grammar test';const a=tg.get(name)||[];a.push(Number(r.score_percent));tg.set(name,a)}
+ for(const [name,values] of tg)grouped.push({name:'Test · '+name,value:avg(values.filter(Number.isFinite)),kind:'Test'});
  const chartRows=grouped.slice(0,8);
- $('learningChart').innerHTML=chartRows.length?chartRows.map(x=>'<div style="margin:13px 0"><div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:13px">'+esc(x.name)+'</strong><span>'+x.value+'%</span></div><div class="learning-bar"><span style="width:'+Math.max(0,Math.min(100,x.value))+'%;background:'+(x.kind==='Grammar'?'#4f46e5':'#0f766e')+'"></span></div></div>').join('')+'<div class="muted">Average score by assessment · purple = grammar · teal = teacher-reviewed writing. Select one student above to filter the chart.</div>':'<div class="empty">No completed assessments to chart yet.</div>';
+ $('learningChart').innerHTML=chartRows.length?chartRows.map(x=>'<div style="margin:13px 0"><div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:13px">'+esc(x.name)+'</strong><span>'+x.value+'%</span></div><div class="learning-bar"><span style="width:'+Math.max(0,Math.min(100,x.value))+'%;background:'+(x.kind==='Grammar'?'#4f46e5':x.kind==='Writing'?'#0f766e':'#d97706')+'"></span></div></div>').join('')+'<div class="muted">Average score by assessment · purple = grammar diagnostics · teal = writing · amber = other tests. Select one student above to filter the chart.</div>':'<div class="empty">No completed assessments to chart yet.</div>';
  const skillCounts=new Map();
  for(const r of learningDiagnostics){for(const skill of (Array.isArray(r.report?.skills)?r.report.skills:[])){const p=pctValue(skill.percent);if(p===null)continue;const item=skillCounts.get(skill.name||skill.id||'Grammar skill')||{sum:0,n:0};item.sum+=p;item.n++;skillCounts.set(skill.name||skill.id||'Grammar skill',item)}}
  const weak=[...skillCounts.entries()].map(([name,x])=>({name,percent:x.sum/x.n})).sort((a,b)=>a.percent-b.percent).slice(0,5);
@@ -106,7 +112,8 @@ function renderLearningDashboard(){
   const ws=reviewed.filter(x=>x.student_id===st.id).sort((a,b)=>new Date(b.reviewed_at||b.submitted_at)-new Date(a.reviewed_at||a.submitted_at));
   const g=ds.length?pctValue(ds[0].overall_percent):null;
   const wr=ws.length?Math.round(100*Number(ws[0].teacher_scores.total)/(Number(ws[0].teacher_scores.max)||100)):null;
-  return '<div class="learning-row"><div><strong>'+esc(st.display_name||st.student_code)+'</strong><div class="muted">'+esc(st.student_code)+' · Grammar: '+(g===null?'No result':g+'%')+' · Writing: '+(wr===null?'No reviewed essay':wr+'%')+'</div></div><button type="button" class="alt" data-profile="'+esc(st.id)+'">View plan</button></div>';
+  const ts=attempts.filter(x=>x.student_id===st.id).sort((a,b)=>new Date(b.completed_at)-new Date(a.completed_at));const tp=ts.length?pctValue(ts[0].score_percent):null;
+  return '<div class="learning-row"><div><strong>'+esc(st.display_name||st.student_code)+'</strong><div class="muted">'+esc(st.student_code)+' · Grammar: '+(g===null?'No result':g+'%')+' · Tests: '+(tp===null?'No result':tp+'%')+' · Writing: '+(wr===null?'No reviewed essay':wr+'%')+'</div></div><button type="button" class="alt" data-profile="'+esc(st.id)+'">View plan</button></div>';
  }).join('')||'<div class="empty">No active students in this class.</div>';
  document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{$('learningStudent').value=b.dataset.profile;renderLearningDashboard();$('studentPlan').scrollIntoView({behavior:'smooth',block:'start'});});
  renderStudentImprovementPlan(studentId?students[0]:null,diagnostics,writings);
