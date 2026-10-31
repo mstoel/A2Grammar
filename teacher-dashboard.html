@@ -136,7 +136,13 @@ function renderStudentImprovementPlan(student,diagnostics,writings,attempts,allR
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function status(msg,kind=''){ $('status').textContent=msg;$('status').className='status '+kind}
 function showDashboardSection(id){document.querySelectorAll('[data-dash-nav]').forEach(b=>b.classList.toggle('active',b.dataset.dashNav===id));document.querySelectorAll('.dashboard-content>.panel').forEach(p=>p.classList.toggle('active',p.id===id));}
-function config(){return {url:SUPABASE_URL,key:SUPABASE_PUBLISHABLE_KEY}}
+function config(){
+ try{
+  const saved=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}');
+  if(saved.url&&saved.key)return {url:saved.url,key:saved.key};
+ }catch(e){console.warn('Saved Supabase settings could not be read:',e)}
+ return {url:SUPABASE_URL,key:SUPABASE_PUBLISHABLE_KEY};
+}
 async function loadSupabaseLibrary(){
  const sources=['https://esm.sh/@supabase/supabase-js@2','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'];
  let lastError;
@@ -153,8 +159,9 @@ async function loadSupabaseLibrary(){
  throw new Error('Could not load the Supabase browser library. Check your internet connection or browser extensions and refresh. '+(lastError?.message||''));
 }
 async function connect(show=true){
- const url=$('projectUrl').value.trim().replace(/\/$/,'');
- const key=$('publishableKey').value.trim();
+ const saved=config();
+ const url=($('projectUrl').value.trim()||saved.url).replace(/\/$/,'');
+ const key=$('publishableKey').value.trim()||saved.key;
  if(!url||!key){status('Enter your Supabase project URL and publishable key.','bad');return false}
  status('Connecting to Supabase…');
  try{
