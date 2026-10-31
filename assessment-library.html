@@ -20,7 +20,8 @@ async function connectDirect(signInAfter=true){
    if(!email||!password){notice('Connection saved. Enter your teacher email and password, then click Connect and sign in.',true);return}
    const signed=await sb.auth.signInWithPassword({email,password});if(signed.error)throw signed.error;user=signed.data.user;
   }
-  $('connectionPanel').classList.add('hide');
+  if(user)$('connectionPanel').classList.add('hide');
+  else $('connectionPanel').classList.remove('hide');
   await load();
  }catch(e){notice('Connection failed: '+e.message,true);$('userLabel').textContent='Connection problem';}
 }
