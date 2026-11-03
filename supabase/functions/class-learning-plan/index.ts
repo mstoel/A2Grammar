@@ -14,8 +14,9 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
   const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
+  const groqKey = Deno.env.get("GROQ_API_KEY");
   if (!url || !anonKey || !serviceKey) return json({ error: "Supabase function configuration is incomplete." }, 500);
-  if (!geminiKey && !openRouterKey) return json({ error: "AI analysis is not configured. Add GEMINI_API_KEY and/or OPENROUTER_API_KEY to Supabase Edge Function secrets." }, 503);
+  if (!geminiKey && !groqKey && !openRouterKey) return json({ error: "AI analysis is not configured. Add GEMINI_API_KEY, GROQ_API_KEY, and/or OPENROUTER_API_KEY to Supabase Edge Function secrets." }, 503);
   try {
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
     if (!token) return json({ error: "Please sign in again." }, 401);
@@ -59,6 +60,22 @@ Deno.serve(async (req) => {
         if (response.ok) raw = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
         else errors.push("Gemini (" + response.status + "): " + String(data?.error?.message || "request failed"));
       } catch (e) { errors.push("Gemini: " + (e instanceof Error ? e.message : String(e))); }
+    }
+    if (!raw && groqKey) {
+      try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + groqKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "openai/gpt-oss-20b", temperature: 0.2, max_tokens: 5000, response_format: { type: "json_object" }, messages: [{ role: "system", content: "Return only valid JSON matching the requested schema. Do not use markdown fences." }, { role: "user", content: prompt }] }),
+          signal: AbortSignal.timeout(12000)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+          const content = data?.choices?.[0]?.message?.content;
+          raw = typeof content === "string" ? content.trim() : Array.isArray(content) ? content.map((p: any) => p.text || "").join("").trim() : "";
+          if (!raw) errors.push("Groq returned an empty response.");
+        } else errors.push("Groq (" + response.status + "): " + String(data?.error?.message || "request failed"));
+      } catch (e) { errors.push("Groq: " + (e instanceof Error ? e.message : String(e))); }
     }
     if (!raw && openRouterKey) {
       try {
