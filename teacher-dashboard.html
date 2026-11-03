@@ -141,7 +141,7 @@ function config(){
   const saved=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}');
   if(saved.url&&saved.key){
    // Migrate an older mismatched key for this platform's own Supabase project.
-   if(saved.url.replace(/\\/$/,'')===SUPABASE_URL&&saved.key!==SUPABASE_PUBLISHABLE_KEY){
+   if(saved.url.replace(/\/$/,'')===SUPABASE_URL&&saved.key!==SUPABASE_PUBLISHABLE_KEY){
     const corrected={url:SUPABASE_URL,key:SUPABASE_PUBLISHABLE_KEY};
     localStorage.setItem('sap_supabase_public_config_v1',JSON.stringify(corrected));
     return corrected;
