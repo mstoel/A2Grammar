@@ -223,7 +223,7 @@ async function loadAssignments(){
   host.innerHTML='<div class="empty">Some assignments could not be loaded: '+esc(e.message)+'</div>';
  }
  const assessmentHtml=rows.map(a=>'<div class="rowitem"><div><strong>'+esc(a.assessments?.title||'Assessment')+'</strong><small>Assessment · Class: '+esc(a.classes?.name||'Class')+' · '+(a.assessments?.is_published?'Published':'Draft')+' · Assigned '+esc(a.assigned_at?new Date(a.assigned_at).toLocaleDateString():'date unavailable')+'</small></div>'+(['owner','admin'].includes(activeSchool.role)?'<button class="danger" data-unassign="'+esc(a.assessment_id)+'" data-class="'+esc(a.class_id)+'">Remove assignment</button>':'')+'</div>').join('');
- const essayHtml=essays.map(a=>'<div class="rowitem"><div><strong>'+esc(a.title||'Writing assignment')+'</strong><small>Writing essay · Class: '+esc(a.classes?.name||'Class')+' · '+esc(a.status||'Draft')+' · Assigned '+esc(a.created_at?new Date(a.created_at).toLocaleDateString():'date unavailable')+'</small></div><span class="pill">Essay</span></div>').join('');
+ const essayHtml=essays.map(a=>'<div class="rowitem"><div><strong>'+esc(a.title||'Writing assignment')+'</strong><small>Writing essay · Class: '+esc(a.classes?.name||'Class')+' · '+esc(a.status||'Draft')+' · Assigned '+esc(a.created_at?new Date(a.created_at).toLocaleDateString():'date unavailable')+'</small></div>'+(['owner','admin'].includes(activeSchool.role)?'<button class="danger" data-remove-writing="'+esc(a.id)+'">Remove assignment</button>':'<span class="pill">Essay</span>')+'</div>').join('');
  if(!rows.length&&!essays.length){host.innerHTML='<div class="empty">'+(selectedClass?'No assignments found for this class.':'No assignments yet. Assign a cloud assessment or publish a writing essay to a class.')+'</div>';return}
  host.innerHTML=assessmentHtml+essayHtml;
  host.querySelectorAll('[data-unassign]').forEach(b=>b.onclick=async()=>{
@@ -233,6 +233,14 @@ async function loadAssignments(){
   const {error}=await sb.from('assessment_assignments').delete().eq('assessment_id',a.assessment_id).eq('class_id',a.class_id).eq('school_id',activeSchool.id);
   if(error){status('Could not remove assignment: '+error.message,'bad');return}
   status('Assignment removed. The assessment itself was not deleted.','good');await loadAssignments();
+ });
+ host.querySelectorAll('[data-remove-writing]').forEach(b=>b.onclick=async()=>{
+  const a=essays.find(x=>x.id===b.dataset.removeWriting);if(!a)return;
+  if(!confirm('Remove "'+(a.title||'this writing essay')+'" from '+(a.classes?.name||'this class')+'? The writing task will remain in your library and existing student submissions will not be deleted.'))return;
+  b.disabled=true;
+  const {error}=await sb.from('writing_assignments').update({class_id:null}).eq('id',a.id).eq('school_id',activeSchool.id).eq('class_id',a.class_id);
+  if(error){b.disabled=false;status('Could not remove writing assignment: '+error.message,'bad');return}
+  status('Writing assignment removed from the class. The task and existing submissions were kept.','good');await loadAssignments();
  });
 }
 async function createSchool(){if(!sb||!user){status('Sign in first.','bad');return}const name=$('schoolName').value.trim(),slug=$('schoolSlug').value.trim().toLowerCase();if(name.length<2||!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)){status('Enter a school name and a unique slug using lowercase letters, numbers and hyphens.','bad');return}const {data,error}=await sb.rpc('create_school_and_owner',{school_name:name,school_slug:slug});if(error){status('Could not create school: '+error.message,'bad');return}status('School created. Your account is its owner.','good');await loadSchools();$('schoolSelect').value=data;await schoolChanged()}
