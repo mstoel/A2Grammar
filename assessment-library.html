@@ -50,7 +50,7 @@ async function loadWritingAssignments(){
  writingRows=[];
  const schoolIds=[...new Set(accessibleSchoolIds)];
  for(const schoolId of schoolIds){
-  const {data,error}=await sb.from('writing_assignments').select('*').eq('school_id',schoolId).eq('created_by',user.id).order('created_at',{ascending:false});
+  const {data,error}=await sb.from('writing_assignments').select('*').eq('school_id',schoolId).order('created_at',{ascending:false});
   if(error)throw error;
   for(const item of (data||[]))writingRows.push(item);
  }
@@ -149,7 +149,7 @@ function renderUnifiedLibrary(){
  }
  for(const r of builtIns){
   const el=document.createElement('article');el.className='item';
-  el.innerHTML='<h2>'+esc(r.title)+'</h2><div class="meta">Built-in platform test · '+esc(r.kind)+'</div><p class="muted">'+esc(r.description)+'</p><div class="actions"><a class="btn alt" href="'+esc(r.href)+'">Open original test</a></div>';
+  el.innerHTML='<h2>'+esc(r.title)+'</h2><div class="meta">Built-in platform test · '+esc(r.kind)+'</div><p class="muted">'+esc(r.description)+'</p><p class="muted">This test is currently available through the student Open Tests area. Class-specific assignment is not yet connected for standalone test pages.</p><div class="actions"><a class="btn alt" href="'+esc(r.href)+'">Open original test</a></div>';
   host.appendChild(el);
  }
 }
