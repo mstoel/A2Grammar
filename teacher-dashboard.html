@@ -214,7 +214,10 @@ async function loadAssignments(){
   sb.from('writing_assignments').select('id,title,status,class_id,created_at,classes(name)').eq('school_id',activeSchool.id).not('class_id','is',null).order('created_at',{ascending:false}).limit(500)
  ]);
  if(assessmentResult.error&&writingResult.error){host.innerHTML='<div class="empty">Could not load assignments: '+esc(assessmentResult.error.message)+' · '+esc(writingResult.error.message)+'</div>';return}
- const selectedClass=$('assignmentClassFilter')?.value||'';\n const allRows=assessmentResult.data||[],allEssays=writingResult.data||[];\n const rows=selectedClass?allRows.filter(a=>a.class_id===selectedClass):allRows;\n const essays=selectedClass?allEssays.filter(a=>a.class_id===selectedClass):allEssays;
+ const selectedClass=$('assignmentClassFilter')?.value||'';
+ const allRows=assessmentResult.data||[],allEssays=writingResult.data||[];
+ const rows=selectedClass?allRows.filter(a=>a.class_id===selectedClass):allRows;
+ const essays=selectedClass?allEssays.filter(a=>a.class_id===selectedClass):allEssays;
  if(assessmentResult.error||writingResult.error){
   const e=assessmentResult.error||writingResult.error;
   host.innerHTML='<div class="empty">Some assignments could not be loaded: '+esc(e.message)+'</div>';
