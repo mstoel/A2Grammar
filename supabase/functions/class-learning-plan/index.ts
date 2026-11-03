@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
           method: "POST", headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
           body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema } }),
-          signal: AbortSignal.timeout(25000)
+          signal: AbortSignal.timeout(12000)
         });
         const data = await response.json().catch(() => ({}));
         if (response.ok) raw = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST", headers: { "Authorization": "Bearer " + openRouterKey, "Content-Type": "application/json", "HTTP-Referer": "https://eduassess.pages.dev", "X-Title": "EduAssess Learning Plan" },
           body: JSON.stringify({ model: "openrouter/free", temperature: 0.2, max_tokens: 5000, messages: [{ role: "system", content: "Return only valid JSON. Do not use markdown fences." }, { role: "user", content: prompt }] }),
-          signal: AbortSignal.timeout(40000)
+          signal: AbortSignal.timeout(18000)
         });
         const data = await response.json().catch(() => ({}));
         if (response.ok) {
@@ -74,13 +74,13 @@ Deno.serve(async (req) => {
         } else errors.push("OpenRouter (" + response.status + "): " + String(data?.error?.message || "request failed"));
       } catch (e) { errors.push("OpenRouter: " + (e instanceof Error ? e.message : String(e))); }
     }
-    if (!raw) return json({ error: "AI analysis failed. " + errors.join(" | ") }, 502);
+    if (!raw) { console.error("class-learning-plan provider failures:", errors); return json({ error: "AI analysis failed. " + (errors.join(" | ") || "The provider returned an empty response.") }, 502); }
     let result: any;
     try {
       const clean = raw.trim().replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "");
       const start = clean.indexOf("{"), end = clean.lastIndexOf("}");
       result = JSON.parse(start >= 0 && end > start ? clean.slice(start, end + 1) : clean);
-    } catch { return json({ error: "The AI provider returned an invalid report. Please try again." }, 502); }
+    } catch (e) { console.error("class-learning-plan invalid JSON:", e, raw.slice(0, 1200)); return json({ error: "The AI provider returned an invalid report. Please try again." }, 502); }
     for (const key of ["executiveSummary","strengths","priorities","supportGroups","enrichmentGroups","fourWeekPlan","cautions"]) {
       if (result[key] === undefined) return json({ error: "The AI report was incomplete. Please try again." }, 502);
     }
