@@ -30,12 +30,15 @@ async function connectDirect(signInAfter=true){
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function notice(msg,isError=false){$('notice').textContent=msg;$('notice').className=isError?'notice':'muted'}
+let accessibleSchoolIds=[];
 async function loadTeachingClasses(){
- teachingClasses=[];
+ teachingClasses=[];accessibleSchoolIds=[];
  const {data:members,error:memberError}=await sb.from('school_memberships').select('school_id,role,schools(id,name,is_active)').eq('user_id',user.id);
  if(memberError)throw memberError;
  for(const m of (members||[])){
-  if(!m.schools||!m.schools.is_active||!['owner','admin'].includes(m.role))continue;
+  if(!m.schools||!m.schools.is_active)continue;
+  accessibleSchoolIds.push(m.school_id);
+  // RLS returns all active classes to owners/admins and only assigned classes to teachers.
   const {data:classRows,error}=await sb.from('classes').select('id,name,is_active,school_id').eq('school_id',m.school_id).eq('is_active',true).order('name');
   if(error)throw error;
   for(const c of (classRows||[]))teachingClasses.push({...c,schoolName:m.schools.name,role:m.role});
@@ -44,7 +47,7 @@ async function loadTeachingClasses(){
 
 async function loadWritingAssignments(){
  writingRows=[];
- const schoolIds=[...new Set(teachingClasses.map(c=>c.school_id))];
+ const schoolIds=[...new Set(accessibleSchoolIds)];
  for(const schoolId of schoolIds){
   const {data,error}=await sb.from('writing_assignments').select('*').eq('school_id',schoolId).eq('created_by',user.id).order('created_at',{ascending:false});
   if(error)throw error;
@@ -109,7 +112,14 @@ function renderUnifiedLibrary(){
  const q=$('search').value.trim().toLowerCase();
  const assessments=rows.filter(r=>(r.title||'').toLowerCase().includes(q)||(r.description||'').toLowerCase().includes(q));
  const writings=groupWritingRows(writingRows).filter(r=>(r.title||'').toLowerCase().includes(q)||(r.prompt||'').toLowerCase().includes(q));
- $('count').textContent='All My Assessments · '+(assessments.length+writings.length)+' item(s)';
+ const builtIns=[
+  {title:'B1 Grammar Diagnostic',description:'B1 adaptive grammar diagnostic',href:'b1-diagnostic.html',kind:'Adaptive diagnostic'},
+  {title:'Grade 5 Decimals Review',description:'Mathematics · decimals',href:'grade5-decimals-review.html',kind:'Math test'},
+  {title:'A2 Targeted Grammar Practice',description:'A2 grammar practice assessment',href:'a2-targeted-grammar-practice.html',kind:'Grammar test'},
+  {title:'M2 Grammar Follow-up',description:'M2 grammar category review',href:'m2-grammar-follow-up.html',kind:'Grammar test'},
+  {title:'A2 Grammar Diagnostic',description:'Original adaptive grammar diagnostic',href:'grammar-diagnostic.html',kind:'Adaptive diagnostic'}
+ ].filter(r=>(r.title+' '+r.description).toLowerCase().includes(q));
+ $('count').textContent='All My Assessments · '+(assessments.length+writings.length+builtIns.length)+' item(s)';
  $('tabHelp').textContent='Multiple-choice tests, adaptive diagnostics and writing assignments in one place. Each keeps its original assessment engine.';
  $('myTab').className='';$('openTab').className='alt';$('writingTab').className='alt';
  const host=$('list');host.innerHTML='';
@@ -134,6 +144,11 @@ function renderUnifiedLibrary(){
   el.querySelector('[data-preview]').onclick=()=>{const detail=document.createElement('div');detail.className='meta';detail.style.whiteSpace='pre-wrap';detail.textContent=(r.prompt||'')+'\n\n'+(r.instructions||'')+'\n\nRubric:\n'+criteria.map(x=>x.name+' — '+x.max+' points').join('\n');el.appendChild(detail)};
   const assignedIds=new Set(r._copies.map(copy=>copy.class_id));const same=teachingClasses.filter(x=>x.school_id===r.school_id&&!assignedIds.has(x.id));
   if(same.length){const wrap=document.createElement('div');wrap.className='actions';wrap.style.marginTop='12px';const sel=document.createElement('select');sel.className='search';sel.style.maxWidth='none';sel.innerHTML='<option value="">Assign copy to class…</option>'+same.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');const btn=document.createElement('button');btn.textContent='Assign copy';btn.onclick=()=>assignWritingFromLibrary(r,sel,btn);wrap.append(sel,btn);el.appendChild(wrap)}
+  host.appendChild(el);
+ }
+ for(const r of builtIns){
+  const el=document.createElement('article');el.className='item';
+  el.innerHTML='<h2>'+esc(r.title)+'</h2><div class="meta">Built-in platform test · '+esc(r.kind)+'</div><p class="muted">'+esc(r.description)+'</p><div class="actions"><a class="btn alt" href="'+esc(r.href)+'">Open original test</a></div>';
   host.appendChild(el);
  }
 }
