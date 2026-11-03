@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     let errors: string[] = [];
     if (geminiKey) {
       try {
-        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
+        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
           method: "POST", headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
           body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: schema } }),
           signal: AbortSignal.timeout(12000)
