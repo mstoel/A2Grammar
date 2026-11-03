@@ -292,7 +292,7 @@ async function generateAIClassPlan(){
  const analysis={className:classes.find(x=>x.id===cid)?.name||'All classes',scope:ak||'All selected assessments',studentCount:students.length,resultCount:rows.length,overallAverage:Math.round(rows.reduce((n,x)=>n+x.score,0)/rows.length),assessmentAverages:[...new Set(rows.map(x=>x.type+' · '+x.name))].map(n=>{const a=rows.filter(x=>x.type+' · '+x.name===n);return {name:n,average:Math.round(a.reduce((v,x)=>v+x.score,0)/a.length),count:a.length}}),grammarSkillAverages:Object.entries(skills).map(([name,v])=>({name,average:Math.round(v.sum/v.n),count:v.n})),studentProfiles};
  btn.disabled=true;btn.textContent='Analysing…';out.innerHTML='<div class="empty">AI is analysing assessment evidence…</div>';
  try{const {data,error}=await sb.functions.invoke('class-learning-plan',{body:{schoolId:activeSchool.id,analysis}});if(error)throw error;if(data?.error)throw Error(data.error);renderAiLearningPlan(data)}
- catch(e){out.innerHTML='<div class="empty">AI plan unavailable: '+esc(e.message||e)+'. Make sure the class-learning-plan Edge Function is deployed.</div>'}
+ catch(e){let detail=e.message||String(e);try{if(e.context&&typeof e.context.json==='function'){const body=await e.context.json();if(body?.error)detail=body.error}}catch{}out.innerHTML='<div class="empty">AI plan unavailable: '+esc(detail)+'. Check the class-learning-plan Edge Function logs if this persists.</div>'}
  finally{btn.disabled=false;btn.textContent='Generate AI learning plan'}
 }
 ensureAiLearningPlanUI();
