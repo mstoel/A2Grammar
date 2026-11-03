@@ -139,7 +139,15 @@ function showDashboardSection(id){document.querySelectorAll('[data-dash-nav]').f
 function config(){
  try{
   const saved=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}');
-  if(saved.url&&saved.key)return {url:saved.url,key:saved.key};
+  if(saved.url&&saved.key){
+   // Migrate an older mismatched key for this platform's own Supabase project.
+   if(saved.url.replace(/\\/$/,'')===SUPABASE_URL&&saved.key!==SUPABASE_PUBLISHABLE_KEY){
+    const corrected={url:SUPABASE_URL,key:SUPABASE_PUBLISHABLE_KEY};
+    localStorage.setItem('sap_supabase_public_config_v1',JSON.stringify(corrected));
+    return corrected;
+   }
+   return {url:saved.url,key:saved.key};
+  }
  }catch(e){console.warn('Saved Supabase settings could not be read:',e)}
  return {url:SUPABASE_URL,key:SUPABASE_PUBLISHABLE_KEY};
 }
