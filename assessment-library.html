@@ -65,21 +65,31 @@ async function assignWritingFromLibrary(source,select,button){
   await loadWritingAssignments();
  }catch(e){notice('Could not assign writing task: '+e.message,true);button.disabled=false}
 }
+function groupWritingRows(input){
+ const groups=new Map();
+ for(const r of input){
+  const rubric=JSON.stringify(r.rubric||{});
+  const key=[r.school_id||'',(r.title||'').trim().toLowerCase(),(r.prompt||'').trim().toLowerCase(),rubric].join('|');
+  if(!groups.has(key))groups.set(key,{...r,_copies:[]});
+  groups.get(key)._copies.push(r);
+ }
+ return [...groups.values()];
+}
 function renderWritingAssignments(){
  const q=$('search').value.trim().toLowerCase();
- const shown=writingRows.filter(r=>(r.title||'').toLowerCase().includes(q)||(r.prompt||'').toLowerCase().includes(q));
+ const shown=groupWritingRows(writingRows).filter(r=>(r.title||'').toLowerCase().includes(q)||(r.prompt||'').toLowerCase().includes(q));
  $('count').textContent='Writing Assignments · '+shown.length+' task'+(shown.length===1?'':'s');
  $('tabHelp').textContent='Your saved writing tasks and rubrics. Assign a copy to another class in the same school.';
  $('myTab').className='alt';$('openTab').className='alt';$('writingTab').className='';
  const host=$('list');host.innerHTML='';
  if(!shown.length){host.innerHTML='<div class="empty">No writing assignments found. Create one in Writing Assessment first, then return here to manage class copies.</div>';return}
  for(const r of shown){
-  const cl=teachingClasses.find(x=>x.id===r.class_id);
+  const cl=teachingClasses.find(x=>x.id===r.class_id);const classNames=[...new Set(r._copies.map(copy=>teachingClasses.find(x=>x.id===copy.class_id)?.name||'Class'))];
   const rubric=r.rubric||{},criteria=Array.isArray(rubric)?rubric:(rubric.criteria||[]);
   const el=document.createElement('article');el.className='item';
-  el.innerHTML='<h2>'+esc(r.title||'Untitled writing task')+'</h2><div class="meta">'+esc(cl?.schoolName||'School')+' · '+esc(cl?.name||'Class unavailable')+' · '+esc(rubric.targetCefr||'CEFR not set')+' · '+criteria.length+' rubric criteria · '+esc(r.status||'draft')+'</div><p>'+esc((r.prompt||'').slice(0,260))+'</p><div class="actions"><button class="alt" data-preview>View task & rubric</button></div>';
+  el.innerHTML='<h2>'+esc(r.title||'Untitled writing task')+'</h2><div class="meta">'+esc(cl?.schoolName||'School')+' · '+esc(classNames.join(', ')||cl?.name||'Class unavailable')+' · '+esc(rubric.targetCefr||'CEFR not set')+' · '+criteria.length+' rubric criteria · '+esc(r.status||'draft')+'</div><p>'+esc((r.prompt||'').slice(0,260))+'</p><div class="actions"><button class="alt" data-preview>View task & rubric</button></div>';
   el.querySelector('[data-preview]').onclick=()=>{const detail=document.createElement('div');detail.className='meta';detail.style.whiteSpace='pre-wrap';detail.textContent=(r.prompt||'')+'\n\n'+(r.instructions||'')+'\n\nRubric:\n'+criteria.map(x=>x.name+' — '+x.max+' points').join('\n');el.appendChild(detail)};
-  const sameSchool=teachingClasses.filter(x=>x.school_id===r.school_id);
+  const assignedIds=new Set(r._copies.map(copy=>copy.class_id));const sameSchool=teachingClasses.filter(x=>x.school_id===r.school_id&&!assignedIds.has(x.id));
   if(sameSchool.length){const wrap=document.createElement('div');wrap.className='actions';wrap.style.marginTop='12px';const sel=document.createElement('select');sel.className='search';sel.style.maxWidth='none';sel.innerHTML='<option value="">Copy assignment to class…</option>'+sameSchool.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');const btn=document.createElement('button');btn.textContent='Assign copy';btn.onclick=()=>assignWritingFromLibrary(r,sel,btn);wrap.append(sel,btn);el.appendChild(wrap)}
   host.appendChild(el);
  }
@@ -99,7 +109,7 @@ async function assignFromLibrary(assessmentId,select,button){
 function renderUnifiedLibrary(){
  const q=$('search').value.trim().toLowerCase();
  const assessments=rows.filter(r=>(r.title||'').toLowerCase().includes(q)||(r.description||'').toLowerCase().includes(q));
- const writings=writingRows.filter(r=>(r.title||'').toLowerCase().includes(q)||(r.prompt||'').toLowerCase().includes(q));
+ const writings=groupWritingRows(writingRows).filter(r=>(r.title||'').toLowerCase().includes(q)||(r.prompt||'').toLowerCase().includes(q));
  $('count').textContent='All My Assessments · '+(assessments.length+writings.length)+' item(s)';
  $('tabHelp').textContent='Multiple-choice tests, adaptive diagnostics and writing assignments in one place. Each keeps its original assessment engine.';
  $('myTab').className='';$('openTab').className='alt';$('writingTab').className='alt';
@@ -119,11 +129,11 @@ function renderUnifiedLibrary(){
   host.appendChild(el);
  }
  for(const r of writings){
-  const cl=teachingClasses.find(x=>x.id===r.class_id),rubric=r.rubric||{},criteria=Array.isArray(rubric)?rubric:(rubric.criteria||[]);
+  const cl=teachingClasses.find(x=>x.id===r.class_id),rubric=r.rubric||{},criteria=Array.isArray(rubric)?rubric:(rubric.criteria||[]);const classNames=[...new Set(r._copies.map(copy=>teachingClasses.find(x=>x.id===copy.class_id)?.name||'Class'))];
   const el=document.createElement('article');el.className='item';
-  el.innerHTML='<h2>'+esc(r.title||'Untitled writing assignment')+'</h2><div class="meta">Writing assignment · '+esc(cl?.name||'Class not available')+' · '+esc(rubric.targetCefr||'CEFR not set')+' · '+criteria.length+' rubric criteria · '+esc(r.status||'draft')+'</div><p>'+esc((r.prompt||'').slice(0,220))+'</p><div class="actions"><button class="alt" data-preview>View task & rubric</button></div>';
+  el.innerHTML='<h2>'+esc(r.title||'Untitled writing assignment')+'</h2><div class="meta">Writing assignment · '+esc(classNames.join(', ')||cl?.name||'Class not available')+' · '+esc(rubric.targetCefr||'CEFR not set')+' · '+criteria.length+' rubric criteria · '+esc(r.status||'draft')+'</div><p>'+esc((r.prompt||'').slice(0,220))+'</p><div class="actions"><button class="alt" data-preview>View task & rubric</button></div>';
   el.querySelector('[data-preview]').onclick=()=>{const detail=document.createElement('div');detail.className='meta';detail.style.whiteSpace='pre-wrap';detail.textContent=(r.prompt||'')+'\n\n'+(r.instructions||'')+'\n\nRubric:\n'+criteria.map(x=>x.name+' — '+x.max+' points').join('\n');el.appendChild(detail)};
-  const same=teachingClasses.filter(x=>x.school_id===r.school_id);
+  const assignedIds=new Set(r._copies.map(copy=>copy.class_id));const same=teachingClasses.filter(x=>x.school_id===r.school_id&&!assignedIds.has(x.id));
   if(same.length){const wrap=document.createElement('div');wrap.className='actions';wrap.style.marginTop='12px';const sel=document.createElement('select');sel.className='search';sel.style.maxWidth='none';sel.innerHTML='<option value="">Assign copy to class…</option>'+same.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');const btn=document.createElement('button');btn.textContent='Assign copy';btn.onclick=()=>assignWritingFromLibrary(r,sel,btn);wrap.append(sel,btn);el.appendChild(wrap)}
   host.appendChild(el);
  }
