@@ -38,7 +38,8 @@ async function loadTeachingClasses(){
  for(const m of (members||[])){
   if(!m.schools||!m.schools.is_active)continue;
   accessibleSchoolIds.push(m.school_id);
-  // RLS returns all active classes to owners/admins and only assigned classes to teachers.
+  // Keep class-assignment controls limited to owners/admins; all members can still retrieve their own writing tasks.
+  if(!['owner','admin'].includes(m.role))continue;
   const {data:classRows,error}=await sb.from('classes').select('id,name,is_active,school_id').eq('school_id',m.school_id).eq('is_active',true).order('name');
   if(error)throw error;
   for(const c of (classRows||[]))teachingClasses.push({...c,schoolName:m.schools.name,role:m.role});
@@ -123,7 +124,7 @@ function renderUnifiedLibrary(){
  $('tabHelp').textContent='Multiple-choice tests, adaptive diagnostics and writing assignments in one place. Each keeps its original assessment engine.';
  $('myTab').className='';$('openTab').className='alt';$('writingTab').className='alt';
  const host=$('list');host.innerHTML='';
- if(!assessments.length&&!writings.length){host.innerHTML='<div class="empty">No assessments found. Create a cloud test or a writing assignment, then refresh this page.</div>';return}
+ if(!assessments.length&&!writings.length&&!builtIns.length){host.innerHTML='<div class="empty">No assessments found. Create a cloud test or a writing assignment, then refresh this page.</div>';return}
  for(const r of assessments){
   const el=document.createElement('article');el.className='item';
   const n=Array.isArray(r.assessment_data?.questions)?r.assessment_data.questions.length:0;
