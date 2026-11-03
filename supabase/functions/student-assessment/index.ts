@@ -210,6 +210,18 @@ Deno.serve(async (req) => {
       };
       const diagnostic = diagnostics[diagnosticKey];
       if (!diagnostic) return json({ error: "This diagnostic version is not supported." }, 400);
+      const assignmentId = String(body.assignmentId || "").trim();
+      if (assignmentId) {
+        const { data: assigned, error: assignmentError } = await db.from("assessment_assignments")
+          .select("assessment_id,assessments!inner(engine_key,is_published,is_active)")
+          .eq("assessment_id", assignmentId).eq("school_id", session.school_id)
+          .eq("class_id", session.students.class_id).maybeSingle();
+        if (assignmentError) throw assignmentError;
+        const assignedAssessment = assigned?.assessments as any;
+        if (!assigned || !assignedAssessment || assignedAssessment.engine_key !== diagnostic.key || !assignedAssessment.is_published || !assignedAssessment.is_active) {
+          return json({ error: "This diagnostic is not assigned to your class or is no longer available." }, 403);
+        }
+      }
       const score = report.score || {};
       const percent = Number(score.percent);
       const questions = Number(score.questionsAnswered);
@@ -231,6 +243,7 @@ Deno.serve(async (req) => {
       const safeReport = {
         schemaVersion: Number(report.schemaVersion) || 1,
         diagnosticKey: diagnostic.key,
+        assignmentId: assignmentId || null,
         testName: diagnostic.name,
         completedAt: new Date(completedAt).toISOString(),
         student: {
@@ -350,8 +363,9 @@ Deno.serve(async (req) => {
         id: a.id, title: a.title, description: a.description, engineKey: a.engine_key,
         kind: a.engine_key === "mc-assessment-builder-v1" ? "multiple-choice" :
           a.engine_key === "essay-rubric-v1" ? "essay-rubric" :
-          a.engine_key === "a2-adaptive-grammar-v1" ? "adaptive-diagnostic" : "other",
-        supported: a.engine_key === "mc-assessment-builder-v1", ...availability(a),
+          ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key) ? "adaptive-diagnostic" : "other",
+        supported: a.engine_key === "mc-assessment-builder-v1" || ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key),
+        launchUrl: a.engine_key === "a2-adaptive-grammar-v1" ? "student-diagnostic.html" : a.engine_key === "b1-adaptive-grammar-v1" ? "b1-diagnostic.html" : null, ...availability(a),
       }));
       return json({ student: session.students.display_name || session.students.student_code, assessments: items });
     }
