@@ -9,7 +9,7 @@ const PORTAL_CONFIG={url:'https://wappdiduuulrrnaczaxl.supabase.co',key:(()=>{tr
 const STUDENT_TOKEN=localStorage.getItem('sap_student_session_v1')||sessionStorage.getItem('sap_student_session_v1')||'';
 let studentIdentity={};try{studentIdentity=JSON.parse(localStorage.getItem('sap_student_identity_v1')||sessionStorage.getItem('sap_student_identity_v1')||'{}')}catch{}
 function apiRequest(payload){if(!PORTAL_CONFIG.key||!STUDENT_TOKEN)return Promise.reject(new Error('Please sign in through the Student Portal again.'));return fetch(PORTAL_CONFIG.url+'/functions/v1/student-assessment',{method:'POST',headers:{'Content-Type':'application/json','apikey':PORTAL_CONFIG.key,'Authorization':'Bearer '+STUDENT_TOKEN},body:JSON.stringify(payload)}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'The request could not be completed.');return d})}
-function apiDiagnostic(report){return apiRequest({action:'submit-diagnostic',diagnosticKey:'b1-adaptive-grammar-v1',report})}
+function apiDiagnostic(report){return apiRequest({action:'submit-diagnostic',diagnosticKey:'b1-adaptive-grammar-v1',assignmentId:new URLSearchParams(location.search).get('assignmentId'),report})}
 function apiDraft(action,draft){return apiRequest({action,diagnosticKey:'b1-adaptive-grammar-v1',...(draft?{draft}: {})})}
 let draftSaveChain=Promise.resolve(),draftSaveTimer=null,restoringDraft=false;
 function snapshotDraft(){return {schemaVersion:1,savedAt:new Date().toISOString(),bankOrder:BANK.map(skill=>skill.id),skillIndex,currentQ,chosen,state,answerLog,studentName,studentClass,studentCode};}
