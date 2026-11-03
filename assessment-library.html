@@ -68,8 +68,7 @@ async function assignWritingFromLibrary(source,select,button){
 function groupWritingRows(input){
  const groups=new Map();
  for(const r of input){
-  const rubric=JSON.stringify(r.rubric||{});
-  const key=[r.school_id||'',(r.title||'').trim().toLowerCase(),(r.prompt||'').trim().toLowerCase(),rubric].join('|');
+  const key=[r.school_id||'',(r.title||'').trim().toLowerCase(),(r.prompt||'').trim().toLowerCase()].join('|');
   if(!groups.has(key))groups.set(key,{...r,_copies:[]});
   groups.get(key)._copies.push(r);
  }
@@ -84,7 +83,7 @@ function renderWritingAssignments(){
  const host=$('list');host.innerHTML='';
  if(!shown.length){host.innerHTML='<div class="empty">No writing assignments found. Create one in Writing Assessment first, then return here to manage class copies.</div>';return}
  for(const r of shown){
-  const cl=teachingClasses.find(x=>x.id===r.class_id);const classNames=[...new Set(r._copies.map(copy=>teachingClasses.find(x=>x.id===copy.class_id)?.name||'Class'))];
+  const cl=teachingClasses.find(x=>x.id===r.class_id);const classNames=[...new Set(r._copies.map(copy=>{const name=teachingClasses.find(x=>x.id===copy.class_id)?.name||'Class';const rubric=copy.rubric||{};return name+(rubric.targetCefr?' · '+rubric.targetCefr:'')}))];
   const rubric=r.rubric||{},criteria=Array.isArray(rubric)?rubric:(rubric.criteria||[]);
   const el=document.createElement('article');el.className='item';
   el.innerHTML='<h2>'+esc(r.title||'Untitled writing task')+'</h2><div class="meta">'+esc(cl?.schoolName||'School')+' · '+esc(classNames.join(', ')||cl?.name||'Class unavailable')+' · '+esc(rubric.targetCefr||'CEFR not set')+' · '+criteria.length+' rubric criteria · '+esc(r.status||'draft')+'</div><p>'+esc((r.prompt||'').slice(0,260))+'</p><div class="actions"><button class="alt" data-preview>View task & rubric</button></div>';
