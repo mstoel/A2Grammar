@@ -8,7 +8,7 @@ const DEFAULT_SUPABASE_PUBLISHABLE_KEY='sb_publishable_PN45VL5nOCBpC1VTgcgPg_XDi
 const $=id=>document.getElementById(id);let sb=null,rows=[],tab='mine',user=null;
 function readConfig(){try{return JSON.parse(localStorage.getItem(configKey)||'{}')}catch{return {}}}
 async function connectDirect(signInAfter=true){
- const url=$('supabaseUrl').value.trim().replace(/\\/$/,'');
+ const url=$('supabaseUrl').value.trim().replace(/\/$/,'');
  const key=$('supabaseKey').value.trim();
  if(!url.startsWith('https://')||!url.endsWith('.supabase.co')){notice('Enter a valid Supabase project URL.',true);return}
  if(!key||key.startsWith('sb_secret_')||key.toLowerCase().includes('service_role')){notice('Use the Supabase publishable key only. Never enter a secret or service-role key.',true);return}
