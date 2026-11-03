@@ -205,8 +205,7 @@ async function bulkAddStudents(){
  if(!classId||!raw){status('Choose a class and paste the student list first.','bad');return}
  const cls=classes.find(c=>c.id===classId);if(!cls||!cls.is_active){status('Choose an active class.','bad');return}
  const parsed=[],seen=new Set(),invalid=[];
- raw.split(/\r?
-/).forEach((line,i)=>{const t=line.trim();if(!t||t.startsWith('#'))return;const parts=t.includes('\t')?t.split('\t'):t.split(',');if(parts.length<2){invalid.push('Line '+(i+1)+': expected nickname, student number');return}const name=parts[0].trim(),code=parts.slice(1).join(',').trim();if(!name||!code){invalid.push('Line '+(i+1)+': nickname or student number is empty');return}const k=code.toLowerCase();if(seen.has(k)){invalid.push('Line '+(i+1)+': duplicate student number in pasted list ('+code+')');return}seen.add(k);parsed.push({display_name:name,student_code:code})});
+ raw.split(/\r?\n/).forEach((line,i)=>{const t=line.trim();if(!t||t.startsWith('#'))return;const parts=t.includes('\t')?t.split('\t'):t.split(',');if(parts.length<2){invalid.push('Line '+(i+1)+': expected nickname, student number');return}const name=parts[0].trim(),code=parts.slice(1).join(',').trim();if(!name||!code){invalid.push('Line '+(i+1)+': nickname or student number is empty');return}const k=code.toLowerCase();if(seen.has(k)){invalid.push('Line '+(i+1)+': duplicate student number in pasted list ('+code+')');return}seen.add(k);parsed.push({display_name:name,student_code:code})});
  if(!parsed.length){host.innerHTML='<p class="muted">No valid students found. '+esc(invalid.join(' · '))+'</p>';return}
  const btn=$('bulkAddStudents');btn.disabled=true;host.innerHTML='<p class="muted">Checking existing records and creating students…</p>';
  try{
