@@ -17,7 +17,8 @@ create table if not exists public.classes (
   name text not null,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
-  unique (school_id, id)
+  unique (school_id, id),
+  unique (school_id, name)
 );
 create table if not exists public.students (
   id uuid primary key default gen_random_uuid(),
@@ -55,7 +56,7 @@ on conflict (slug) do update set name = excluded.name, is_active = true;
 
 insert into public.classes (school_id, name)
 select id, 'HSK Test Class' from public.schools where slug = 'hsk-test'
-on conflict do nothing;
+on conflict (school_id, name) do nothing;
 
 -- Dedicated disposable test login. Access code is HSKTEST2026! (case-insensitive).
 insert into public.students (school_id, class_id, student_code, display_name, access_code_hash, is_active)
