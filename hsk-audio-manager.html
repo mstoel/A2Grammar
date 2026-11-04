@@ -14,6 +14,7 @@ const DEFAULT_URL='https://wappdiduuulrrnaczaxl.supabase.co',DEFAULT_KEY='sb_pub
 const $=id=>document.getElementById(id);
 let sb=null,user=null,session=null,schools=[],supabaseUrl=DEFAULT_URL,publishableKey=DEFAULT_KEY;
 function status(msg,kind=''){$('status').textContent=msg;$('status').className='status '+kind}
+function esc(v){return String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]))}
 async function connect(){
  let saved={};try{saved=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}')}catch{}
  const cfg={url:saved.url||DEFAULT_URL,key:saved.key||DEFAULT_KEY};supabaseUrl=cfg.url;publishableKey=cfg.key;
