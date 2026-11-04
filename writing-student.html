@@ -22,11 +22,11 @@ function plainText(html){
  function read(node){
   if(node.nodeType===Node.TEXT_NODE)return node.nodeValue||"";
   if(node.nodeType!==Node.ELEMENT_NODE)return "";
-  if(node.tagName==="BR")return "\\n";
+  if(node.tagName==="BR")return "\n";
   const inner=[...node.childNodes].map(read).join("");
-  return blockTags.has(node.tagName)?"\\n"+inner+"\\n":inner;
+  return blockTags.has(node.tagName)?"\n"+inner+"\n":inner;
  }
- return read(doc.body).replace(/\\u00a0/g," ").replace(/[ \\t]+\\n/g,"\\n").replace(/\\n{3,}/g,"\\n\\n").trim();
+ return read(doc.body).replace(/\u00a0/g," ").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
 }
 function cleanHtml(html){
  const doc=new DOMParser().parseFromString(String(html||""),"text/html");
