@@ -53,8 +53,7 @@ function renderProgress(data){
   const details=skill.levels.map((lv,i)=>isWriting&&i===0?'HSK 1: N/A':('HSK '+lv.level+': '+(lv.score===null?'Not assessed':lv.score+'%'+(lv.passed?' · passed':' · not passed')))).join(' · ');
   let button='';
   if(isWriting){
-   const next=skill.availableLevel;
-   button='<p class="muted">HSK 1: Not assessed · Writing begins at HSK 2.</p><button data-skill="'+skill.skill+'" data-level="'+next+'">Start HSK '+next+' writing</button>';
+   button='<p class="muted">HSK 1: Not assessed · HSK 2 writing tasks are being prepared.</p>';
   } else {
    const next=skill.availableLevel;
    button='<button data-skill="'+skill.skill+'" data-level="'+next+'">Start HSK '+next+'</button>';
