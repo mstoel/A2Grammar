@@ -74,7 +74,8 @@ function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<spa
   let media='';if(q.audioUrl)media+='<audio controls preload="none" class="media" src="'+esc(q.audioUrl)+'">Your browser does not support audio.</audio>';
   if(q.imageUrl)media+='<br><img class="media" src="'+esc(q.imageUrl)+'" alt="Question image">';
   if(q.metadata&&q.metadata.imageSvg){const svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(q.metadata.imageSvg);media+='<br><img class="media" src="'+svgUrl+'" alt="Picture prompt" style="width:180px;height:135px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;padding:8px">';}
-  if(q.stimulus)media+='<p>'+esc(q.stimulus)+'</p>';
+  // Listening items must not reveal the audio transcript before the student answers.
+  if(q.stimulus&&skill!=='listening')media+='<p>'+esc(q.stimulus)+'</p>';
   el.innerHTML='<h3>'+(i+1)+'. '+esc(q.prompt)+'</h3>'+media+q.options.map(o=>'<label class="option"><input type="radio" name="'+esc(q.id)+'" value="'+o.index+'" required><span>'+esc(o.text)+'</span></label>').join('');
   $('questions').appendChild(el);
  });
