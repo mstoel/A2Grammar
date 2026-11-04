@@ -82,11 +82,11 @@ The current HSK 1 bank has 15 items per skill. This is enough for the initial 10
 - Browser key: the project's publishable key (stored in `hsk-diagnostic.html`; it is not a secret)
 - Student page: `hsk-diagnostic.html`
 - School ID: `hsk-test`
-- Student ID: `HSK-TEST-01`
+- Student ID: `TEST-M2-001`
 - Test access code: `HSKTEST2026!` (case-insensitive)
 
-The bootstrap migration creates only the minimum `schools`, `classes`, `students`, and `student_sessions` tables needed by the existing student-assessment Edge Function, plus one disposable test student. It does not import or copy real school/student data. Run the bootstrap migration before the HSK foundation migration.
+The bootstrap migration creates only the minimum `schools`, `classes`, `students`, and `student_sessions` tables needed by the existing student-assessment Edge Function, plus a disposable HSK test copy of the M2 test-student identity (`TEST-M2-001`). It does not import or copy the production account, password, assignments or student data. Run the bootstrap migration before the HSK foundation migration.
 
-The HSK student page now has its own login form and stores a separate browser token (`hsk_test_student_session_v1`); it does not reuse the production EduAssess student session or production Supabase URL. The page can be tested for picture recognition, vocabulary, character recognition, reading and grammar after migrations and the Edge Function are deployed. Listening remains unavailable until the 15 Mandarin clips are generated and teacher-reviewed.
+The HSK student page now defaults to the M2 test student's ID and has its own login form and browser token (`hsk_test_student_session_v1`); it does not reuse the production EduAssess student session or production Supabase URL. The HSK copy uses the separate disposable access code `HSKTEST2026!`, not the production account's access code. The page can be tested for picture recognition, vocabulary, character recognition, reading and grammar after migrations and the Edge Function are deployed. Listening remains unavailable until the 15 Mandarin clips are generated and teacher-reviewed.
 
 Do not run any of these migrations in `SchoolAssessmentPlatform`. The test project is currently separate and empty until the migrations are run. The Edge Function must be deployed in the HSK test project using the complete updated `supabase/functions/student-assessment/index.ts` file from this branch. Do not paste a service-role key into the browser page or GitHub.
