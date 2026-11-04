@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HSK Chinese Diagnostic · EduAssess</title>
+<style>
+:root{--ink:#17233b;--muted:#64748b;--line:#e3e8f2;--bg:#f5f7fc;--brand:#4f46e5;--good:#047857;--bad:#b91c1c;--amber:#b45309}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif}header{background:linear-gradient(120deg,#18264a,#3730a3);color:white;padding:25px 20px}header>div,main{max-width:950px;margin:auto}header a{color:#e0e7ff;text-decoration:none;font-size:14px}h1{font-size:clamp(28px,4vw,38px);margin:18px 0 5px}header p{margin:0;color:#e0e7ff}main{padding:24px 16px 50px}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}.muted,.help{color:var(--muted);font-size:14px}.status{padding:13px 15px;border-radius:11px;background:#eef2ff;color:#3730a3;margin:16px 0}.status.bad{background:#fef2f2;color:#991b1b}.status.good{background:#ecfdf5;color:#065f46}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.skill{border:1px solid var(--line);border-radius:12px;padding:15px}.skill h3{margin:0 0 4px;font-size:17px}.bars{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:12px 0 7px}.segment{height:12px;border-radius:99px;background:#e2e8f0;overflow:hidden}.fill{height:100%;background:#94a3b8}.fill.pass{background:#059669}.fill.red{background:#dc2626}.fill.amber{background:#d97706}.fill.yellow{background:#eab308}.level-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.scoreline{font-size:12px;color:var(--muted);min-height:18px}.btn,button{display:inline-block;padding:10px 14px;background:var(--brand);color:white;border:0;border-radius:10px;text-decoration:none;font:inherit;font-weight:750;cursor:pointer}.btn.alt,button.alt{background:#eef2ff;color:#3730a3}.btn:disabled,button:disabled{opacity:.5;cursor:not-allowed}.question{padding:17px 0;border-bottom:1px solid var(--line)}.question:last-child{border-bottom:0}.question h3{font-size:17px;margin:0 0 10px}.option{display:flex;gap:10px;align-items:flex-start;padding:11px;border:1px solid var(--line);border-radius:10px;margin:8px 0;cursor:pointer}.option input{margin-top:5px}.option:has(input:checked){border-color:#6366f1;background:#eef2ff}.media{max-width:100%;max-height:220px;border-radius:10px;margin:8px 0}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.pill{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:99px;padding:4px 9px;font-size:12px;font-weight:750}.hidden{display:none!important}.result{padding:16px;border-radius:12px;background:#f8fafc;border:1px solid var(--line)}@media(max-width:600px){.card{padding:16px}}
+</style>
+</head>
+<body>
+<header><div><a href="#progress">← HSK progress</a><h1>HSK Chinese Diagnostic</h1><p>HSK 3.0-aligned · HSK 1 starter diagnostic · HSK 2–3 in development</p></div></header>
+<main>
+<div id="status" class="status">Checking your HSK test-student session…</div>
+<section id="loginPanel" class="card hidden"><h2>HSK test student login</h2><p class="muted">Use the dedicated test account for this separate HSK practice environment.</p><form id="loginForm"><label>School ID<input id="schoolSlug" value="hsk-test" autocomplete="organization" required></label><label style="display:block;margin-top:12px">Student ID<input id="studentCode" value="TEST-M2-001" autocomplete="username" required></label><label style="display:block;margin-top:12px">Access code<input id="accessCode" type="password" autocomplete="current-password" required></label><div class="actions"><button id="loginBtn" type="submit">Sign in to HSK test</button></div></form></section>
+<div id="sessionBar" class="muted hidden" style="margin:0 0 14px;display:flex;justify-content:space-between;gap:12px;align-items:center"><span id="studentLabel"></span><button id="logoutBtn" class="alt" type="button">Sign out</button></div>
+<section id="intro" class="card">
+<h2>Your Chinese progress</h2>
+<p class="muted">Each skill progresses independently. You can move to HSK 2 or HSK 3 in a skill only after passing the previous level in that same skill. A score of 75% or higher passes a level; scores from 60% to 74% trigger extra confirmation questions.</p>
+<div id="overall" class="muted">Your overall HSK level is calculated from the six core skills.</div>
+</section>
+<section id="progress" class="grid"></section>
+<section id="testPanel" class="card hidden">
+<div id="testHeading"></div>
+<form id="testForm"><div id="questions"></div><div class="actions"><button id="submitBtn" type="submit">Submit answers</button><button id="cancelBtn" type="button" class="alt">Return to progress</button></div></form>
+</section>
+<section class="card">
+<h3>About this diagnostic</h3>
+<p class="muted">This is an EduAssess learning diagnostic aligned to the HSK 3.0 syllabus. It is not an official HSK examination and does not issue an HSK certificate. Writing is planned from HSK 2; speaking is not included in this first release.</p>
+<a class="btn alt" href="#progress">Return to HSK progress</a>
+</section>
+</main>
+<script>
+const DEFAULT_SCHOOL_CONFIG={url:'https://iexqwpquqystxacrisxv.supabase.co',key:'sb_publishable_wVS0TyHI8nBJfR1jXbI_dg_WBHVCFi5'};
+let savedConfig={};try{savedConfig=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}')}catch{}
+const SCHOOL_CONFIG={url:savedConfig.url||DEFAULT_SCHOOL_CONFIG.url,key:savedConfig.key||DEFAULT_SCHOOL_CONFIG.key};
+const TOKEN='hsk_test_student_session_v1';let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||'';
+const $=id=>document.getElementById(id);
+let progressData=null,currentAttempt=null,currentQuestions=[],currentRound=1;
+const skillNames={listening:'Listening',picture_recognition:'Picture recognition',vocabulary:'Vocabulary',character_recognition:'Character recognition',reading:'Reading',grammar:'Grammar',writing:'Writing'};
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function status(message,kind=''){$('status').textContent=message;$('status').className='status '+kind}
+async function api(body){const res=await fetch(SCHOOL_CONFIG.url+'/functions/v1/student-assessment',{method:'POST',headers:{'Content-Type':'application/json','apikey':SCHOOL_CONFIG.key,...(token?{'Authorization':'Bearer '+token}:{})},body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'The request could not be completed.');return data}
+function renderProgress(data){
+ progressData=data;$('overall').textContent='Overall core-skill level: '+(data.overallLevel?('HSK '+data.overallLevel):'Not yet established')+'.';
+ const host=$('progress');host.innerHTML='';
+ for(const skill of data.skills){
+  const card=document.createElement('article');card.className='skill';
+  const isWriting=skill.skill==='writing';
+  const segs=skill.levels.map((lv,i)=>{
+   if(isWriting&&i===0)return '<div class="segment" title="Not assessed at HSK 1"></div>';
+   const score=lv.score,passed=lv.passed;
+   const fill=passed?100:score===null?0:Math.max(0,Math.min(100,score));
+   const color=passed?'pass':score===null?'':score<50?'red':score<70?'amber':'yellow';
+   return '<div class="segment" title="HSK '+lv.level+': '+(score===null?'Not assessed':score+'%')+'"><div class="fill '+color+'" style="width:'+fill+'%"></div></div>';
+  }).join('');
+  const labels=skill.levels.map(lv=>'<span>HSK '+lv.level+(lv.passed?' ✓':'')+'</span>').join('');
+  const details=skill.levels.map((lv,i)=>isWriting&&i===0?'HSK 1: N/A':('HSK '+lv.level+': '+(lv.score===null?'Not assessed':lv.score+'%'+(lv.passed?' · passed':' · not passed')))).join(' · ');
+  let button='';
+  const next=skill.availableLevel, nextData=skill.levels[next-1];
+  if(isWriting){
+   button='<p class="muted">HSK 1: Not assessed · HSK 2 writing tasks are being prepared.</p>';
+  } else if(nextData&&nextData.ready){
+   button='<button data-skill="'+skill.skill+'" data-level="'+next+'">Start HSK '+next+'</button>';
+  } else {
+   const note=skill.skill==='listening'?'Mandarin audio is waiting for teacher review.':'The HSK '+next+' question set is being prepared.';
+   button='<p class="muted">'+esc(note)+'</p>';
+  }
+  card.innerHTML='<h3>'+skillNames[skill.skill]+'</h3><div class="bars">'+segs+'</div><div class="level-labels">'+labels+'</div><div class="scoreline">'+esc(details)+'</div><div class="actions">'+button+'</div>';
+  const start=card.querySelector('button[data-skill]');if(start)start.onclick=()=>startSkill(start.dataset.skill,Number(start.dataset.level),start);
+  host.appendChild(card);
+ }
+}
+async function refresh(){if(!token){$('loginPanel').classList.remove('hidden');$('sessionBar').classList.add('hidden');$('intro').classList.add('hidden');$('progress').innerHTML='';status('Sign in with the HSK test-student account to begin.');return}try{const data=await api({action:'hsk-status'});renderProgress(data);$('loginPanel').classList.add('hidden');$('intro').classList.remove('hidden');$('sessionBar').classList.remove('hidden');$('studentLabel').textContent='Signed in: '+(data.studentName||'HSK Test Student');status('Your HSK progress is saved to the HSK test database.','good')}catch(e){if(/session|sign in|expired/i.test(e.message)){token='';localStorage.removeItem(TOKEN);$('loginPanel').classList.remove('hidden');$('intro').classList.add('hidden');$('sessionBar').classList.add('hidden')}status(e.message,'bad')}}
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginBtn').disabled=true;try{const data=await api({action:'login',schoolSlug:$('schoolSlug').value,studentCode:$('studentCode').value,accessCode:$('accessCode').value});token=data.token;localStorage.setItem(TOKEN,token);$('accessCode').value='';await refresh()}catch(err){status(err.message,'bad')}finally{$('loginBtn').disabled=false}});
+$('logoutBtn').onclick=async()=>{try{await api({action:'logout'})}catch{}token='';localStorage.removeItem(TOKEN);$('testPanel').classList.add('hidden');await refresh()};
+async function startSkill(skill,level,button){button.disabled=true;try{status('Preparing HSK '+level+' '+skillNames[skill]+' questions…');const data=await api({action:'hsk-start',skill,level});currentAttempt=data.attemptId;currentQuestions=data.questions||[];currentRound=1;renderQuestions(skill,level,currentQuestions);$('testPanel').classList.remove('hidden');$('testPanel').scrollIntoView({behavior:'smooth',block:'start'});status('Answer each question, then submit your answers.')}catch(e){status(e.message,'bad')}finally{button.disabled=false}}
+function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<span class="pill">HSK '+level+' · '+esc(skillNames[skill])+' · Round '+currentRound+'</span><h2>'+esc(skillNames[skill])+' questions</h2><p class="muted">Choose one answer for each question. Your answers are scored securely on the server.</p>';$('questions').innerHTML='';
+ questions.forEach((q,i)=>{
+  const el=document.createElement('article');el.className='question';
+  let media='';if(q.audioUrl)media+='<audio controls preload="none" class="media" src="'+esc(q.audioUrl)+'">Your browser does not support audio.</audio>';
+  if(q.imageUrl)media+='<br><img class="media" src="'+esc(q.imageUrl)+'" alt="Question image">';
+  if(q.metadata&&q.metadata.imageSvg){const svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(q.metadata.imageSvg);media+='<br><img class="media" src="'+svgUrl+'" alt="Picture prompt" style="width:180px;height:135px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;padding:8px">';}
+  // Listening items must not reveal the audio transcript before the student answers.
+  if(q.stimulus&&skill!=='listening')media+='<p>'+esc(q.stimulus)+'</p>';
+  el.innerHTML='<h3>'+(i+1)+'. '+esc(q.prompt)+'</h3>'+media+q.options.map(o=>'<label class="option"><input type="radio" name="'+esc(q.id)+'" value="'+o.index+'" required><span>'+esc(o.text)+'</span></label>').join('');
+  $('questions').appendChild(el);
+ });
+}
+$('testForm').addEventListener('submit',async e=>{
+ e.preventDefault();const answers={};
+ for(const q of currentQuestions){const chosen=document.querySelector('input[name="'+CSS.escape(q.id)+'"]:checked');if(!chosen){status('Please answer every question before submitting.','bad');return}answers[q.id]=Number(chosen.value)}
+ $('submitBtn').disabled=true;
+ try{
+  status('Scoring your answers…');const result=await api({action:'hsk-submit',attemptId:currentAttempt,answers});
+  if(result.continue){currentRound=2;currentQuestions=result.questions||[];renderQuestions(result.skill,result.level,currentQuestions);status('Your score was in the confirmation range. Please answer these extra questions before your level is decided.');$('testPanel').scrollIntoView({behavior:'smooth',block:'start'});return}
+  $('testPanel').classList.add('hidden');
+  const message='HSK '+result.level+' '+skillNames[result.skill]+': '+result.score+'% ('+result.correct+'/'+result.total+'). '+(result.passed?'Level passed! The next level in this skill is now unlocked.':result.borderline?'This level is not passed yet. Your result is saved; you can try again later.':'Keep practising this level and try again when you are ready.');
+  await refresh();
+  status(message,result.passed?'good':'');
+ }catch(err){status(err.message,'bad')}finally{$('submitBtn').disabled=false}
+});
+$('cancelBtn').onclick=()=>{$('testPanel').classList.add('hidden');refresh()};
+refresh();
+</script>
+</body>
+</html>
