@@ -123,10 +123,10 @@ Deno.serve(async (req) => {
     const audioBytes = Uint8Array.from(atob(part.inlineData.data), c => c.charCodeAt(0));
     const mimeType = String(part.inlineData.mimeType || "").toLowerCase();
     const isWav = audioBytes.length > 44 && String.fromCharCode(...audioBytes.slice(0, 4)) === "RIFF";
-    if (!isWav && !/(audio\\/(pcm|l16))/.test(mimeType)) {
+    if (!isWav && !/(audio\/(pcm|l16))/.test(mimeType)) {
       return json({ error: "Gemini returned an unsupported audio format. No file was saved." }, 502);
     }
-    const rateMatch = mimeType.match(/rate=(\\d+)/);
+    const rateMatch = mimeType.match(/rate=(\d+)/);
     if (!isWav && audioBytes.length % 2 !== 0) return json({ error: "Gemini returned incomplete PCM audio data." }, 502);
     const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
     if (!isWav && (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 96000)) {
