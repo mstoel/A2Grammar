@@ -85,10 +85,10 @@ function pinyinForChinese(value){
  if(hskPinyin[text])return hskPinyin[text];
  // Use word-level entries first, then a character fallback for unfamiliar combinations.
  const chars=Array.from(text);
- if(chars.every(ch=>!/[\\u3400-\\u9fff]/.test(ch)))return '';
+ if(chars.every(ch=>!/[\u3400-\u9fff]/.test(ch)))return '';
  return chars.map(ch=>hskCharacterPinyin[ch]||'').filter(Boolean).join(' ');
 }
-function isChineseText(value){return /[\\u3400-\\u9fff]/.test(String(value??''))}
+function isChineseText(value){return /[\u3400-\u9fff]/.test(String(value??''))}
 function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<span class="pill">HSK '+level+' · '+esc(skillNames[skill])+' · Round '+currentRound+'</span><h2>'+esc(skillNames[skill])+' questions</h2><p class="muted">Choose one answer for each question. Your answers are scored securely on the server.</p>';$('questions').innerHTML='';
  questions.forEach((q,i)=>{
   const el=document.createElement('article');el.className='question';
@@ -97,7 +97,7 @@ function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<spa
   if(q.metadata&&q.metadata.imageSvg){const svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(q.metadata.imageSvg);media+='<br><img class="media" src="'+svgUrl+'" alt="Picture prompt" style="width:180px;height:135px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;padding:8px">';}
   // Listening items must not reveal the audio transcript before the student answers.
   // A vocabulary prompt asking students to select a Chinese word must not reveal that word as its stimulus.
-  const hideVocabularyAnswer=skill==='vocabulary'&&/^choose the chinese word for\\b/i.test(String(q.prompt||'').trim());
+  const hideVocabularyAnswer=skill==='vocabulary'&&/^choose the chinese word for\b/i.test(String(q.prompt||'').trim());
   if(q.stimulus&&skill!=='listening'&&!hideVocabularyAnswer)media+='<p>'+esc(q.stimulus)+'</p>';
   el.innerHTML='<h3>'+(i+1)+'. '+esc(q.prompt)+'</h3>'+media+q.options.map(o=>{
    const chinese=isChineseText(o.text),pinyin=chinese?pinyinForChinese(o.text):'';
