@@ -17,7 +17,18 @@ function newToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return hex(bytes);
 }
-function sanitizeEssayHtml(input: string) { const allowed = new Set(["p","br","strong","b","em","i","u","ul","ol","li","blockquote"]); return String(input||"").replace(/<!--[\\s\\S]*?-->/g,"").replace(/<\\s*(script|style|iframe|object|svg|math)[^>]*>[\\s\\S]*?<\\s*\\/\\s*\\1\\s*>/gi,"").replace(/<\\/?([a-z0-9]+)\\b[^>]*>/gi,(tag,name)=>{const n=name.toLowerCase();if(!allowed.has(n))return "";return /^<\\s*\\//.test(tag)?"</"+n+">":n==="br"?"<br>":"<"+n+">";}).slice(0,200000); }
+function sanitizeEssayHtml(input: string) {
+  const allowed = new Set(["p", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote"]);
+  return String(input || "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<\s*(script|style|iframe|object|svg|math)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+    .replace(/<\/?([a-z0-9]+)\b[^>]*>/gi, (tag, name) => {
+      const n = name.toLowerCase();
+      if (!allowed.has(n)) return "";
+      return /^<\s*\//.test(tag) ? "</" + n + ">" : n === "br" ? "<br>" : "<" + n + ">";
+    })
+    .slice(0, 200000);
+}
 function safeQuestion(q: any) {
   return {
     id: String(q.id ?? ""),
