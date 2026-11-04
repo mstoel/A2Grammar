@@ -48,11 +48,12 @@ Apply migrations in timestamp order:
 1. `202611050001_hsk_diagnostic_foundation.sql`
 2. `202611050002_hsk1_question_bank_seed.sql`
 3. `202611050003_hsk1_picture_question_bank.sql`
+4. `202611050004_hsk_audio_review.sql`
 
-The seeds contain original EduAssess questions (not official HSK exam questions): 15 each for vocabulary, character recognition, reading, grammar, listening and picture recognition. Picture-recognition items use embedded vector illustrations. Listening rows are marked `pending` until audio is generated and manually reviewed.
+The seeds contain 90 original EduAssess HSK 1 questions (not official HSK exam questions): 15 each for vocabulary, character recognition, reading, grammar, listening and picture recognition. Picture-recognition items use embedded vector illustrations. Listening rows are marked `pending` until audio is generated; the teacher must listen to each clip and approve it before it can be served to students. The teacher review page is `hsk-audio-manager.html`, linked from the HSK entry in the Assessment Centre.
 
 The diagnostic requires at least 15 eligible questions per skill/level: 10 initial questions plus up to 5 confirmation questions. Only published questions are delivered.
 
 ### Deployment and verification still required
 
-These changes are on the feature branch only. Before students can use them, apply the migrations to the intended Supabase project, deploy the updated `student-assessment` function, deploy `hsk-audio`, add the `GEMINI_API_KEY` Edge Function secret, generate the listening clips, and manually listen to every clip. Then verify the HSK page with a real student test account. No production deployment or database migration has been run from this workspace.
+These changes are on the feature branch only. Before students can use them, apply the migrations to the intended Supabase project, deploy the updated `student-assessment` function, deploy `hsk-audio`, add the `GEMINI_API_KEY` Edge Function secret, open `hsk-audio-manager.html` from the Assessment Centre, generate the listening clips, and manually listen to and approve every clip. Then verify the HSK page with a real student test account. No production deployment or database migration has been run from this workspace.
