@@ -47,8 +47,9 @@ Apply migrations in timestamp order:
 
 1. `202611050001_hsk_diagnostic_foundation.sql`
 2. `202611050002_hsk1_question_bank_seed.sql`
+3. `202611050003_hsk1_picture_question_bank.sql`
 
-The seed contains original EduAssess questions (not official HSK exam questions): 15 each for vocabulary, character recognition, reading, grammar and listening. Listening rows are marked `pending` until audio is generated and manually reviewed. Picture-recognition content and its visual assets are not seeded yet, so that skill will report as not ready rather than presenting a broken test.
+The seeds contain original EduAssess questions (not official HSK exam questions): 15 each for vocabulary, character recognition, reading, grammar, listening and picture recognition. Picture-recognition items use embedded vector illustrations. Listening rows are marked `pending` until audio is generated and manually reviewed.
 
 The diagnostic requires at least 15 eligible questions per skill/level: 10 initial questions plus up to 5 confirmation questions. Only published questions are delivered.
 
