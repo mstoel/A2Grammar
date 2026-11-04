@@ -83,8 +83,8 @@ $('testForm').addEventListener('submit',async e=>{
   if(result.continue){currentRound=2;currentQuestions=result.questions||[];renderQuestions(result.skill,result.level,currentQuestions);status('Your score was in the confirmation range. Please answer these extra questions before your level is decided.');$('testPanel').scrollIntoView({behavior:'smooth',block:'start'});return}
   $('testPanel').classList.add('hidden');
   const message='HSK '+result.level+' '+skillNames[result.skill]+': '+result.score+'% ('+result.correct+'/'+result.total+'). '+(result.passed?'Level passed! The next level in this skill is now unlocked.':result.borderline?'This level is not passed yet. Your result is saved; you can try again later.':'Keep practising this level and try again when you are ready.');
-  status(message,result.passed?'good':'');
   await refresh();
+  status(message,result.passed?'good':'');
  }catch(err){status(err.message,'bad')}finally{$('submitBtn').disabled=false}
 });
 $('cancelBtn').onclick=()=>{$('testPanel').classList.add('hidden');refresh()};
