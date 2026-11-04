@@ -1,0 +1,20 @@
+name: HSK diagnostic validation
+
+on:
+  push:
+    branches:
+      - feature/hsk-3-diagnostic
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-hsk-bank:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate HSK question bank and delivery safeguards
+        run: node scripts/validate-hsk-diagnostic.mjs
