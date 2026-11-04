@@ -18,10 +18,6 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Link production project
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase link --project-ref wappdiduuulrrnaczaxl
       - name: Deploy student assessment function
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
