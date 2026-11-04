@@ -55,6 +55,40 @@ function renderReview(sub){const box=$('reviewBox');box.classList.add('hidden');
 function updateCount(){$('wordCount').textContent=words(plainText($('essay').innerHTML))+' words'}
 let timer=null,saving=false;
 async function saveDraft(submit=false){if(!active||saving)return;saving=true;$('save').disabled=true;$('submit').disabled=true;try{const d=await api({action:submit?'writing-submit':'writing-save',assignmentId:active.id,text:plainText($('essay').innerHTML),html:cleanHtml($('essay').innerHTML)});$('saveState').textContent=submit?'Submitted':'Draft saved';$('savedAt').textContent=submit?'Submitted '+new Date(d.submission.submitted_at).toLocaleString():'Saved '+new Date(d.submission.updated_at).toLocaleTimeString();say(submit?(d.aiReview?'Essay submitted and AI feedback is ready.':'Essay submitted successfully. Your final version is locked.'+(d.aiAssessmentPending?' AI feedback is delayed: '+(d.aiAssessmentError||'please contact your teacher'):' AI assessment is being processed.')):'Draft saved.','good');if(submit){$('essay').disabled=true;await load();const refreshed=await api({action:'writing-list'});const updated=refreshed.submissions.find(s=>s.assignment_id===active.id);if(updated){renderReview(updated);if(updated.status==='reviewed')say('Your essay has been assessed. Your AI feedback is shown below.','good');}$('editorCard').classList.remove('hidden');$('listCard').classList.add('hidden');if(updated?.status==='reviewed')$('saveState').textContent='AI feedback ready';}else{$('save').disabled=false;$('submit').disabled=false}}catch(e){say(e.message,'bad');$('save').disabled=false;$('submit').disabled=false}finally{saving=false}}
-$('essay').addEventListener('input',()=>{updateCount();$('saveState').textContent='Unsaved changes';clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200)});document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('mousedown',e=>e.preventDefault()));document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('click',()=>{if($('essay').disabled)return;$('essay').focus();document.execCommand(btn.dataset.command,false,null);updateCount();$('saveState').textContent='Unsaved changes';clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200)}));$('clearFormat').addEventListener('mousedown',e=>e.preventDefault());$('clearFormat').onclick=()=>{if($('essay').disabled)return;$('essay').focus();document.execCommand('removeFormat',false,null);document.execCommand('formatBlock',false,'P');updateCount();$('saveState').textContent='Unsaved changes';clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200)};['paste','copy','cut','drop'].forEach(ev=>$('essay').addEventListener(ev,e=>{e.preventDefault();say('Copying, pasting, cutting and dropping text are disabled in this writing task.','bad')}));$('essay').addEventListener('contextmenu',e=>e.preventDefault());$('essay').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['c','v','x'].includes(e.key.toLowerCase())){e.preventDefault();say('Copying, pasting and cutting are disabled in this writing task.','bad')}});$('save').onclick=()=>saveDraft(false);$('submit').onclick=()=>{if(confirm('Submit your final essay? You will not be able to edit it afterwards.'))saveDraft(true)};$('back').onclick=()=>{$('editorCard').classList.add('hidden');$('listCard').classList.remove('hidden');load()};
+$('essay').addEventListener('input',()=>{updateCount();$('saveState').textContent='Unsaved changes';clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200)});function syncToolbar(){
+ const editor=$('essay');
+ const selection=window.getSelection();
+ const inside=selection&&selection.rangeCount&&editor.contains(selection.anchorNode);
+ document.querySelectorAll('[data-command="bold"],[data-command="italic"],[data-command="underline"]').forEach(btn=>{
+  const active=!!inside&&document.queryCommandState(btn.dataset.command);
+  btn.setAttribute('aria-pressed',String(active));
+ });
+}
+function markEssayChanged(){
+ updateCount();$('saveState').textContent='Unsaved changes';
+ clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200);
+}
+document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('mousedown',e=>e.preventDefault()));
+document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('click',()=>{
+ if($('essay').disabled)return;
+ $('essay').focus();
+ document.execCommand(btn.dataset.command,false,null);
+ syncToolbar();markEssayChanged();
+}));
+$('essay').addEventListener('keyup',syncToolbar);
+$('essay').addEventListener('mouseup',syncToolbar);
+$('essay').addEventListener('input',syncToolbar);
+document.addEventListener('selectionchange',syncToolbar);
+$('clearFormat').addEventListener('mousedown',e=>e.preventDefault());
+$('clearFormat').onclick=()=>{
+ if($('essay').disabled)return;
+ const editor=$('essay');
+ editor.focus();
+ const selection=window.getSelection();
+ const hasSelection=selection&&selection.rangeCount&&editor.contains(selection.anchorNode)&&editor.contains(selection.focusNode)&&!selection.isCollapsed;
+ if(!hasSelection)document.execCommand('selectAll',false,null);
+ document.execCommand('removeFormat',false,null);
+ syncToolbar();markEssayChanged();
+};['paste','copy','cut','drop'].forEach(ev=>$('essay').addEventListener(ev,e=>{e.preventDefault();say('Copying, pasting, cutting and dropping text are disabled in this writing task.','bad')}));$('essay').addEventListener('contextmenu',e=>e.preventDefault());$('essay').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['c','v','x'].includes(e.key.toLowerCase())){e.preventDefault();say('Copying, pasting and cutting are disabled in this writing task.','bad')}});$('save').onclick=()=>saveDraft(false);$('submit').onclick=()=>{if(confirm('Submit your final essay? You will not be able to edit it afterwards.'))saveDraft(true)};$('back').onclick=()=>{$('editorCard').classList.add('hidden');$('listCard').classList.remove('hidden');load()};
 if(!token){say('Please sign in through the Student Dashboard first, then open Writing Workspace.','bad')}else load();
 </script></body></html>
