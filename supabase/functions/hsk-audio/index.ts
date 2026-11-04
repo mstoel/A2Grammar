@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
     if (authError || !auth.user) return json({ error: "Your teacher session has expired. Please sign in again." }, 401);
 
     const body = await req.json();
+    const action = String(body.action || "generate");
     const questionId = String(body.questionId || "").trim();
     const schoolId = String(body.schoolId || "").trim();
-    if (!questionId || !schoolId) return json({ error: "Missing question or school." }, 400);
+    if (!schoolId) return json({ error: "Missing school." }, 400);
 
     const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: membership, error: membershipError } = await admin.from("school_memberships")
@@ -55,6 +56,37 @@ Deno.serve(async (req) => {
     if (membershipError) throw membershipError;
     if (!membership || !["owner", "admin", "teacher"].includes(membership.role)) return json({ error: "You do not have permission to manage HSK content for this school." }, 403);
 
+    if (action === "list") {
+      const { data: rows, error: listError } = await admin.from("hsk_questions")
+        .select("question_id,level,skill,audio_text,audio_path,audio_status,audio_reviewed")
+        .eq("level", 1).eq("skill", "listening").order("question_id");
+      if (listError) throw listError;
+      const questions = await Promise.all((rows || []).map(async (q: any) => {
+        let audioUrl: string | null = null;
+        if (q.audio_path) {
+          const { data } = await admin.storage.from("hsk-media").createSignedUrl(q.audio_path, 900);
+          audioUrl = data?.signedUrl || null;
+        }
+        return { questionId: q.question_id, status: q.audio_status, reviewed: !!q.audio_reviewed, hasScript: !!String(q.audio_text || "").trim(), audioUrl };
+      }));
+      return json({ ok: true, questions });
+    }
+
+    if (action === "approve") {
+      if (!questionId) return json({ error: "Choose an audio question to approve." }, 400);
+      const { data: existing, error: existingError } = await admin.from("hsk_questions")
+        .select("question_id,audio_path,audio_status").eq("question_id", questionId).maybeSingle();
+      if (existingError) throw existingError;
+      if (!existing || existing.audio_status !== "ready" || !existing.audio_path) return json({ error: "Generate the audio before approving it." }, 409);
+      const { error: approveError } = await admin.from("hsk_questions").update({
+        audio_reviewed: true, audio_reviewed_at: new Date().toISOString(),
+      }).eq("question_id", questionId);
+      if (approveError) throw approveError;
+      return json({ ok: true, questionId, reviewed: true });
+    }
+
+    if (action !== "generate") return json({ error: "Unknown HSK audio action." }, 400);
+    if (!questionId) return json({ error: "Missing question ID." }, 400);
     const { data: question, error: questionError } = await admin.from("hsk_questions")
       .select("question_id,level,skill,audio_text,audio_path,is_published")
       .eq("question_id", questionId).maybeSingle();
@@ -99,7 +131,7 @@ Deno.serve(async (req) => {
     if (uploadError) throw uploadError;
 
     const { error: updateError } = await admin.from("hsk_questions").update({
-      audio_path: storagePath, audio_status: "ready", audio_generated_at: new Date().toISOString(),
+      audio_path: storagePath, audio_status: "ready", audio_reviewed: false, audio_reviewed_at: null, audio_generated_at: new Date().toISOString(),
     }).eq("question_id", questionId);
     if (updateError) throw updateError;
 
