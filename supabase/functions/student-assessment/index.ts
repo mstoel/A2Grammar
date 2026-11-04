@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       }
       let query = db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,audio_status,metadata").eq("level", level).eq("skill", skill).eq("is_published", true);
       if (skill === "listening") query = query.eq("audio_status", "ready").not("audio_path", "is", null);
-      if (skill === "picture_recognition") query = query.not("image_path", "is", null);
+      // Curated HSK picture items can carry a safe inline SVG in metadata; uploaded images use image_path.
       const { data: pool, error: poolError } = await query.limit(200);
       if (poolError) throw poolError;
       const eligible = (pool || []).filter((q: any) => Array.isArray(q.options) && q.options.length >= 2 && q.options.length <= 6);
