@@ -98,7 +98,9 @@ Deno.serve(async (req) => {
       .select("id,student_id,school_id,expires_at,revoked_at,students(id,class_id,student_code,display_name,is_active,classes(name))")
       .eq("token_hash", tokenHash).maybeSingle();
     if (sessionErr) throw sessionErr;
-    if (!session || session.revoked_at || Date.parse(session.expires_at) <= Date.now() || !session.students?.is_active) {
+    // PostgREST may infer the student relation as either an object or a one-row array.
+    const studentRecord: any = Array.isArray(session?.students) ? studentRecord[0] : (session as any)?.students;
+    if (!session || session.revoked_at || Date.parse(session.expires_at) <= Date.now() || !studentRecord?.is_active) {
       return json({ error: "Your session has expired. Please sign in again." }, 401);
     }
     await db.from("student_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
@@ -232,14 +234,14 @@ Deno.serve(async (req) => {
       const { data: assignments, error } = await db.from("writing_assignments")
         .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status,is_open_test,class_id,classes(name)")
         .eq("school_id", session.school_id).eq("status", "published")
-        .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true")
+        .or("class_id.eq."+studentRecord.class_id+",is_open_test.eq.true")
         .order("created_at", { ascending: false });
       if (error) throw error;
       const { data: submissions, error: subErr } = await db.from("writing_submissions")
         .select("id,assignment_id,draft_text,submitted_text,draft_html,submitted_html,status,submitted_at,updated_at,teacher_scores,teacher_feedback,ai_review")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
-      return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.is_open_test ? "Open Test" : (a.classes?.name || session.students.classes?.name || "") })), submissions: submissions || [] });
+      return json({ className: studentRecord.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.is_open_test ? "Open Test" : (a.classes?.name || studentRecord.classes?.name || "") })), submissions: submissions || [] });
     }
 
     if (action === "writing-save" || action === "writing-submit") {
@@ -252,7 +254,7 @@ Deno.serve(async (req) => {
         .select("id,school_id,class_id,is_open_test,status,min_words,max_words,due_at,rubric")
         .eq("id", assignmentId).eq("school_id", session.school_id)
         .eq("status", "published")
-        .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true").maybeSingle();
+        .or("class_id.eq."+studentRecord.class_id+",is_open_test.eq.true").maybeSingle();
       if (aErr) throw aErr;
       if (!assignment || (assignment.due_at && Date.parse(assignment.due_at) <= Date.now())) return json({ error: "This writing assignment is no longer available." }, 403);
       const words = textValue.trim() ? textValue.trim().split(/\s+/).length : 0;
@@ -263,7 +265,7 @@ Deno.serve(async (req) => {
       if (existing?.status === "submitted") return json({ error: "This essay has already been submitted and is locked." }, 409);
       const now = new Date().toISOString();
       const values: any = {
-        assignment_id: assignmentId, school_id: session.school_id, class_id: session.students.class_id,
+        assignment_id: assignmentId, school_id: session.school_id, class_id: studentRecord.class_id,
         student_id: session.student_id, draft_text: textValue, draft_html: htmlValue, word_count: words,
         status: action === "writing-submit" ? "submitted" : "draft", updated_at: now,
       };
@@ -358,7 +360,7 @@ Deno.serve(async (req) => {
         const { data: assigned, error: assignmentError } = await db.from("assessment_assignments")
           .select("assessment_id,assessments!inner(engine_key,is_published,is_active)")
           .eq("assessment_id", assignmentId).eq("school_id", session.school_id)
-          .eq("class_id", session.students.class_id).maybeSingle();
+          .eq("class_id", studentRecord.class_id).maybeSingle();
         if (assignmentError) throw assignmentError;
         const assignedAssessment = assigned?.assessments as any;
         if (!assigned || !assignedAssessment || assignedAssessment.engine_key !== diagnostic.key || !assignedAssessment.is_published || !assignedAssessment.is_active) {
@@ -390,9 +392,9 @@ Deno.serve(async (req) => {
         testName: diagnostic.name,
         completedAt: new Date(completedAt).toISOString(),
         student: {
-          className: String(session.students.class_id || ""),
-          studentCode: String(session.students.student_code || ""),
-          studentName: String(session.students.display_name || session.students.student_code || ""),
+          className: String(studentRecord.class_id || ""),
+          studentCode: String(studentRecord.student_code || ""),
+          studentName: String(studentRecord.display_name || studentRecord.student_code || ""),
         },
         score: { questionsAnswered: questions, correct, percent, skillsPassedOrSecure: passed, skillsExtended: extended },
         skills: report.skills.slice(0, diagnostic.skills),
@@ -443,7 +445,7 @@ Deno.serve(async (req) => {
     if (action === "dashboard") {
       const { data: assignedRows, error: assignedErr } = await db.from("assessment_assignments")
         .select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode),classes!inner(id,is_active)")
-        .eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true);
+        .eq("class_id", studentRecord.class_id).eq("school_id", session.school_id).eq("classes.is_active", true);
       if (assignedErr) throw assignedErr;
       const assigned = (assignedRows || []).map((x: any) => x.assessments).filter((a: any) =>
         a && a.is_active && a.is_published && notClosed(a)
@@ -460,7 +462,7 @@ Deno.serve(async (req) => {
       for (const a of attempts) if (!completedById.has(a.assessment_id)) completedById.set(a.assessment_id, a);
       const { data: writingAssignments, error: writingErr } = await db.from("writing_assignments")
         .select("id,title,prompt,instructions,rubric,min_words,max_words,due_at,status,classes(name)")
-        .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
+        .eq("school_id", session.school_id).eq("class_id", studentRecord.class_id).eq("status", "published")
         .order("created_at", { ascending: false });
       if (writingErr) throw writingErr;
       const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions")
@@ -490,13 +492,13 @@ Deno.serve(async (req) => {
         kind: "Grammar diagnostic", completed: true, score: Number(r.overall_percent), completedAt: r.completed_at,
         description: "Completed diagnostic"
       }));
-      return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems, diagnostics });
+      return json({ student: studentRecord.display_name || studentRecord.student_code, className: studentRecord.classes?.name || "", assessments: assessmentItems, writing: writingItems, diagnostics });
     }
 
     if (action === "list") {
       const { data: assignments, error } = await db.from("assessment_assignments")
         .select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode),classes!inner(id,is_active)")
-        .eq("class_id", session.students.class_id)
+        .eq("class_id", studentRecord.class_id)
         .eq("school_id", session.school_id)
         .eq("classes.is_active", true);
       if (error) throw error;
@@ -510,7 +512,7 @@ Deno.serve(async (req) => {
         supported: a.engine_key === "mc-assessment-builder-v1" || ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key),
         launchUrl: a.engine_key === "a2-adaptive-grammar-v1" ? "student-diagnostic.html" : a.engine_key === "b1-adaptive-grammar-v1" ? "b1-diagnostic.html" : null, ...availability(a),
       }));
-      return json({ student: session.students.display_name || session.students.student_code, assessments: items });
+      return json({ student: studentRecord.display_name || studentRecord.student_code, assessments: items });
     }
 
     if (action === "start" || action === "submit") {
@@ -519,7 +521,7 @@ Deno.serve(async (req) => {
       const { data: assignment, error: assignErr } = await db.from("assessment_assignments")
         .select("assessment_id,school_id,class_id,classes!inner(is_active)")
         .eq("assessment_id", assessmentId).eq("school_id", session.school_id)
-        .eq("class_id", session.students.class_id).eq("classes.is_active", true).maybeSingle();
+        .eq("class_id", studentRecord.class_id).eq("classes.is_active", true).maybeSingle();
       if (assignErr) throw assignErr;
       if (!assignment) return json({ error: "This assessment is not assigned to your class." }, 403);
       const { data: assessment, error: assessErr } = await db.from("assessments")
