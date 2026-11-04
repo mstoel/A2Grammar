@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       .eq("token_hash", tokenHash).maybeSingle();
     if (sessionErr) throw sessionErr;
     // PostgREST may infer the student relation as either an object or a one-row array.
-    const studentRecord: any = Array.isArray(session?.students) ? studentRecord[0] : (session as any)?.students;
+    const studentRecord: any = Array.isArray(session?.students) ? (session as any).students[0] : (session as any)?.students;
     if (!session || session.revoked_at || Date.parse(session.expires_at) <= Date.now() || !studentRecord?.is_active) {
       return json({ error: "Your session has expired. Please sign in again." }, 401);
     }
