@@ -121,8 +121,18 @@ Deno.serve(async (req) => {
     if (!part?.inlineData?.data) return json({ error: "Gemini returned no audio data for this script." }, 502);
 
     const audioBytes = Uint8Array.from(atob(part.inlineData.data), c => c.charCodeAt(0));
+    const mimeType = String(part.inlineData.mimeType || "").toLowerCase();
     const isWav = audioBytes.length > 44 && String.fromCharCode(...audioBytes.slice(0, 4)) === "RIFF";
-    const wavBytes = isWav ? audioBytes : pcmToWav(audioBytes);
+    if (!isWav && !/(audio\\/(pcm|l16))/.test(mimeType)) {
+      return json({ error: "Gemini returned an unsupported audio format. No file was saved." }, 502);
+    }
+    const rateMatch = mimeType.match(/rate=(\\d+)/);
+    if (!isWav && audioBytes.length % 2 !== 0) return json({ error: "Gemini returned incomplete PCM audio data." }, 502);
+    const sampleRate = rateMatch ? Number(rateMatch[1]) : 24000;
+    if (!isWav && (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 96000)) {
+      return json({ error: "Gemini returned an unsupported audio sample rate." }, 502);
+    }
+    const wavBytes = isWav ? audioBytes : pcmToWav(audioBytes, sampleRate);
     if (wavBytes.length < 1000 || wavBytes.length > 15 * 1024 * 1024) return json({ error: "The generated audio file has an unexpected size." }, 502);
 
     const storagePath = "audio/" + question.question_id + ".wav";
