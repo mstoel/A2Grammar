@@ -18,3 +18,8 @@ jobs:
           node-version: 22
       - name: Validate HSK question bank and delivery safeguards
         run: node scripts/validate-hsk-diagnostic.mjs
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check HSK Edge Functions
+        run: deno check --no-lock supabase/functions/hsk-audio/index.ts supabase/functions/student-assessment/index.ts
