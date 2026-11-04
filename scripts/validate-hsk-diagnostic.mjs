@@ -79,7 +79,7 @@ for (const page of [studentPath, managerPath, "student-portal.html", "assessment
   assert.ok(scripts.length > 0, page + ": no inline JavaScript found");
   scripts.forEach((source, index) => {
     try {
-      new Function(source);
+      new Function("return (async function(){\n" + source + "\n})()");
     } catch (error) {
       throw new Error(page + ": inline script " + (index + 1) + " has a syntax error: " + error.message);
     }
