@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   if (!geminiKey) return json({ error: "Add GEMINI_API_KEY to Supabase Edge Function secrets before generating HSK audio." }, 503);
 
   try {
-    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
     if (!token) return json({ error: "Please sign in again." }, 401);
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: "Bearer " + token } },
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     if (!question) return json({ error: "HSK question not found." }, 404);
     if (!question.audio_text || !question.audio_text.trim()) return json({ error: "This question has no Mandarin audio script." }, 422);
 
-    const ttsPrompt = "Speak in clear, standard Mainland Mandarin (Putonghua), with natural pronunciation and a measured pace suitable for beginner language learners. Read the following Chinese text exactly as written. Do not translate, explain, add, or omit any words:\\n\\n" + question.audio_text.trim();
+    const ttsPrompt = "Speak in clear, standard Mainland Mandarin (Putonghua), with natural pronunciation and a measured pace suitable for beginner language learners. Read the following Chinese text exactly as written. Do not translate, explain, add, or omit any words:\n\n" + question.audio_text.trim();
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent", {
       method: "POST",
       headers: { "x-goog-api-key": geminiKey, "Content-Type": "application/json" },
