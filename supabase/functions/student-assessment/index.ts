@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
         availableLevel: 1,
       }));
       for (const item of skillProgress) {
-        if (item.skill === "writing") item.availableLevel = 2;
+        if (item.skill === "writing") item.availableLevel = item.levels[1].passed ? 3 : 2;
         else if (item.levels[0].passed && item.levels[1].passed) item.availableLevel = 3;
         else if (item.levels[0].passed) item.availableLevel = 2;
       }
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       const allowedSkills = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar","writing"];
       if (!allowedSkills.includes(skill) || ![1,2,3].includes(level)) return json({ error: "Choose a valid HSK skill and level." }, 400);
       if (skill === "writing" && level < 2) return json({ error: "Writing is not assessed at HSK 1 in this diagnostic." }, 400);
-      if (level > 1) {
+      if (level > 1 && !(skill === "writing" && level === 2)) {
         const { data: prior, error: priorError } = await db.from("hsk_skill_progress").select("passed").eq("student_id", session.student_id).eq("skill", skill).eq("level", level - 1).maybeSingle();
         if (priorError) throw priorError;
         if (!prior?.passed) return json({ error: "Pass HSK " + (level - 1) + " in this skill before starting HSK " + level + "." }, 403);
