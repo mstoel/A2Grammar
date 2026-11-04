@@ -172,7 +172,7 @@ function renderUnifiedLibrary(){
  }
  for(const r of builtIns){
   const el=document.createElement('article');el.className='item';
-  el.innerHTML='<h2>'+esc(r.title)+'</h2><div class="meta">'+esc(r.subject)+' · '+esc(r.level)+' · '+esc(r.kind)+' · '+esc(r.mode)+'</div><p class="muted">'+esc(r.description)+'</p><div class="actions"><a class="btn alt" href="'+esc(r.href)+'">Open test</a></div><p class="muted">Available in the student Open Tests area; students can choose it themselves. It is not a class-assigned cloud assessment.</p>';
+  el.innerHTML='<h2>'+esc(r.title)+'</h2><div class="meta">'+esc(r.subject)+' · '+esc(r.level)+' · '+esc(r.kind)+' · '+esc(r.mode)+'</div><p class="muted">'+esc(r.description)+'</p><div class="actions"><a class="btn alt" href="'+esc(r.href)+'">Open test</a>'+(r.title==='HSK Chinese Diagnostic'?' <a class="btn" href="hsk-audio-manager.html">Prepare listening audio</a>':'')+'</div><p class="muted">Available in the student Open Tests area; students can choose it themselves. It is not a class-assigned cloud assessment.</p>';
   host.appendChild(el);
  }
  if(expoMatches){
