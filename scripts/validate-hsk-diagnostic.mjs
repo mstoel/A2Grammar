@@ -71,4 +71,19 @@ assert.match(assessment, /function safeHskMetadata/, "Student metadata must be w
 assert.equal((assessment.match(/metadata:safeHskMetadata\(q\.metadata\)/g) || []).length, 2,
   "Both HSK question delivery rounds must use safe metadata");
 
-console.log("HSK static validation passed: 90 unique HSK 1 items, valid answer indexes, six skill banks, and student/audio privacy checks.");
+for (const page of [studentPath, managerPath, "student-portal.html", "assessment-library.html"]) {
+  const html = read(page);
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+  assert.ok(scripts.length > 0, page + ": no inline JavaScript found");
+  scripts.forEach((source, index) => {
+    try {
+      new Function(source);
+    } catch (error) {
+      throw new Error(page + ": inline script " + (index + 1) + " has a syntax error: " + error.message);
+    }
+  });
+}
+
+console.log("HSK validation passed: question bank, answer keys, student/audio safeguards, and inline page JavaScript syntax.");
