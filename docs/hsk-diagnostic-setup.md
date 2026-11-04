@@ -38,7 +38,7 @@ The student portal uses its existing custom student session. The HSK actions wer
 - `hsk-status`: returns each skill's HSK 1–3 best score, pass state and next unlocked level.
 - `hsk-start`: verifies the previous level was passed, selects a reviewed question set and returns question text/options plus short-lived signed media URLs. Answer keys remain server-side.
 - `hsk-submit`: scores answers on the server, stores a skill result and updates the student's best progress. A 60–74% first-round score triggers up to five additional confirmation questions. A final score of 75% or higher passes that skill level.
-- The overall HSK level advances only when all six core skills (listening, picture recognition, vocabulary, character recognition, reading and grammar) have passed that level.
+- The overall HSK 1 level advances only when all six core skills (listening, picture recognition, vocabulary, character recognition, reading and grammar) have passed. From HSK 2 onward, writing is also required for the overall level, while each individual skill still progresses independently.
 - HSK 1 writing is shown as not assessed in the student interface; writing is planned from HSK 2.
 
 ### HSK 1 question bank seed
