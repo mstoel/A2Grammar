@@ -128,8 +128,8 @@ Deno.serve(async (req) => {
         if (priorError) throw priorError;
         if (!prior?.passed) return json({ error: "Pass HSK " + (level - 1) + " in this skill before starting HSK " + level + "." }, 403);
       }
-      let query = db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,audio_status,metadata").eq("level", level).eq("skill", skill).eq("is_published", true);
-      if (skill === "listening") query = query.eq("audio_status", "ready").not("audio_path", "is", null);
+      let query = db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,audio_status,audio_reviewed,metadata").eq("level", level).eq("skill", skill).eq("is_published", true);
+      if (skill === "listening") query = query.eq("audio_status", "ready").eq("audio_reviewed", true).not("audio_path", "is", null);
       // Curated HSK picture items can carry a safe inline SVG in metadata; uploaded images use image_path.
       const { data: pool, error: poolError } = await query.limit(200);
       if (poolError) throw poolError;
