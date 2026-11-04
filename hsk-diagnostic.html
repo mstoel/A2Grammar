@@ -28,7 +28,9 @@
 </section>
 </main>
 <script>
-const SCHOOL_CONFIG={url:'https://wappdiduuulrrnaczaxl.supabase.co',key:'sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2'};
+const DEFAULT_SCHOOL_CONFIG={url:'https://wappdiduuulrrnaczaxl.supabase.co',key:'sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2'};
+let savedConfig={};try{savedConfig=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}')}catch{}
+const SCHOOL_CONFIG={url:savedConfig.url||DEFAULT_SCHOOL_CONFIG.url,key:savedConfig.key||DEFAULT_SCHOOL_CONFIG.key};
 const TOKEN='sap_student_session_v1',token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||'';
 const $=id=>document.getElementById(id);
 let progressData=null,currentAttempt=null,currentQuestions=[],currentRound=1;
