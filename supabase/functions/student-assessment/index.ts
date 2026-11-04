@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       const { data: pool, error: poolError } = await query.limit(200);
       if (poolError) throw poolError;
       const eligible = (pool || []).filter((q: any) => Array.isArray(q.options) && q.options.length >= 2 && q.options.length <= 6);
-      if (eligible.length < 10) return json({ error: "This HSK " + level + " " + skill.replaceAll("_"," ") + " question set is not ready yet. At least 10 reviewed questions with the required media are needed." }, 409);
+      if (eligible.length < 15) return json({ error: "This HSK " + level + " " + skill.replaceAll("_"," ") + " question set is not ready yet. At least 15 reviewed questions with the required media are needed for the diagnostic and its confirmation round." }, 409);
       const shuffled = [...eligible].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, Math.min(15, shuffled.length));
       const firstRound = selected.slice(0, 10);
