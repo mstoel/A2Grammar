@@ -130,7 +130,7 @@ function renderUnifiedLibrary(){
   {title:'A2 Targeted Grammar Practice',description:'Present Perfect vs Past Simple and future forms',href:'a2-targeted-grammar-practice.html',kind:'Grammar practice',subject:'Grammar',level:'A2',mode:'Open Test'},
   {title:'M2 Grammar Follow-up',description:'48 questions across 8 grammar categories',href:'m2-grammar-follow-up.html',kind:'Grammar practice',subject:'Grammar',level:'M2',mode:'Open Test'},
   {title:'Grade 5 Mathematics: Decimals',description:'Decimal place value, comparing, rounding and operations',href:'grade5-decimals-review.html',kind:'Mathematics test',subject:'Mathematics',level:'Grade 5',mode:'Open Test'},
-  {title:'HSK Chinese Diagnostic',description:'HSK 3.0-aligned Chinese diagnostic · HSK 1–3 · Listening, vocabulary, characters, reading and grammar',href:'hsk-diagnostic.html',kind:'Language diagnostic',subject:'Chinese',level:'HSK 1–3',mode:'Open Test'}
+  {title:'HSK Chinese Diagnostic',description:'HSK 3.0-aligned starter diagnostic · HSK 1 question bank available; HSK 2–3 in development',href:'hsk-diagnostic.html',kind:'Language diagnostic',subject:'Chinese',level:'HSK 1 starter',mode:'Open Test'}
  ].filter(r=>[r.title,r.description,r.subject,r.level].join(' ').toLowerCase().includes(q));
  const expoMatches=['horticultural expo','expo','udon thani'].some(x=>x.includes(q)||q.includes(x))||!q;
  $('count').textContent='All Assessments · '+(assessments.length+writings.length+builtIns.length+(expoMatches?1:0))+' item(s)';
