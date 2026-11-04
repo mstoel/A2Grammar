@@ -4,6 +4,9 @@ This feature is being developed on `feature/hsk-3-diagnostic`. It is an EduAsses
 
 ## Current foundation
 
+- Listed in the student portal's **Open Tests** area and the teacher Assessment Centre as **HSK Chinese Diagnostic**.
+- Landing page: `hsk-diagnostic.html`. It is deliberately marked as a preview until secure question delivery, scoring and saved progress are complete.
+
 - Private question bank with level, skill, item type, answer key, source reference, image/audio metadata.
 - Separate attempt, per-skill result, and persistent per-skill progress tables.
 - Private `hsk-media` Supabase Storage bucket.
