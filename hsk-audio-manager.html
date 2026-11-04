@@ -12,11 +12,11 @@
 <script>
 const DEFAULT_URL='https://wappdiduuulrrnaczaxl.supabase.co',DEFAULT_KEY='sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2';
 const $=id=>document.getElementById(id);
-let sb=null,user=null,session=null,schools=[];
+let sb=null,user=null,session=null,schools=[],supabaseUrl=DEFAULT_URL,publishableKey=DEFAULT_KEY;
 function status(msg,kind=''){$('status').textContent=msg;$('status').className='status '+kind}
 async function connect(){
  let saved={};try{saved=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}')}catch{}
- const cfg={url:saved.url||DEFAULT_URL,key:saved.key||DEFAULT_KEY};
+ const cfg={url:saved.url||DEFAULT_URL,key:saved.key||DEFAULT_KEY};supabaseUrl=cfg.url;publishableKey=cfg.key;
  const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2');sb=createClient(cfg.url,cfg.key);
  const s=await sb.auth.getSession();session=s.data.session;if(!session)throw new Error('Please sign in through the Teacher Dashboard first.');
  user=session.user;
@@ -29,7 +29,7 @@ async function connect(){
  await load();
 }
 async function callFunction(payload){
- const res=await fetch(DEFAULT_URL+'/functions/v1/hsk-audio',{method:'POST',headers:{'Content-Type':'application/json','apikey':DEFAULT_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({...payload,schoolId:$('school').value})});
+ const res=await fetch(supabaseUrl+'/functions/v1/hsk-audio',{method:'POST',headers:{'Content-Type':'application/json','apikey':publishableKey,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({...payload,schoolId:$('school').value})});
  const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'HSK audio request failed ('+res.status+').');return data;
 }
 async function load(){
@@ -37,7 +37,7 @@ async function load(){
  for(const q of data.questions||[]){
   const item=document.createElement('article');item.className='item';
   const state=q.reviewed?'Approved for students':q.status==='ready'?'Generated · awaiting review':q.status==='failed'?'Generation failed':'Audio pending';
-  item.innerHTML='<div class="row"><span class="tag">'+q.questionId+'</span><span class="muted">'+state+'</span></div><h3>HSK 1 Listening</h3><p class="script">'+(q.hasScript?'Mandarin script available':'No audio script')+'</p>'+(q.audioUrl?'<audio controls preload="none" src="'+q.audioUrl+'">Audio playback is not supported.</audio>':'')+'<div class="actions">'+(q.status!=='ready'?'<button data-generate>Generate Mandarin audio</button>':'')+(q.status==='ready'&&!q.reviewed?'<button data-approve>Approve for students</button>':'')+'</div>';
+  item.innerHTML='<div class="row"><span class="tag">'+q.questionId+'</span><span class="muted">'+state+'</span></div><h3>HSK 1 Listening</h3><p class="script">'+(q.hasScript?'Mandarin script available':'No audio script')+'</p>'+(q.audioUrl?'<audio controls preload="none" src="'+q.audioUrl+'">Audio playback is not supported.</audio>':'')+'<div class="actions">'+(q.status!=='ready'?'<button data-generate>Generate Mandarin audio</button>':(!q.reviewed?'<button data-generate class="alt">Regenerate audio</button>':''))+(q.status==='ready'&&!q.reviewed?'<button data-approve>Approve for students</button>':'')+'</div>';
   const gen=item.querySelector('[data-generate]');if(gen)gen.onclick=()=>runQuestion(q.questionId,'generate',gen);
   const approve=item.querySelector('[data-approve]');if(approve)approve.onclick=()=>runQuestion(q.questionId,'approve',approve);
   host.appendChild(item);
