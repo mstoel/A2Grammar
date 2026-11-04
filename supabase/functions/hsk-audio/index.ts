@@ -32,7 +32,6 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
   if (!supabaseUrl || !anonKey || !serviceKey) return json({ error: "Supabase function configuration is incomplete." }, 500);
-  if (!geminiKey) return json({ error: "Add GEMINI_API_KEY to Supabase Edge Function secrets before generating HSK audio." }, 503);
 
   try {
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
@@ -67,7 +66,7 @@ Deno.serve(async (req) => {
           const { data } = await admin.storage.from("hsk-media").createSignedUrl(q.audio_path, 900);
           audioUrl = data?.signedUrl || null;
         }
-        return { questionId: q.question_id, status: q.audio_status, reviewed: !!q.audio_reviewed, hasScript: !!String(q.audio_text || "").trim(), audioUrl };
+        return { questionId: q.question_id, status: q.audio_status, reviewed: !!q.audio_reviewed, hasScript: !!String(q.audio_text || "").trim(), audioText: String(q.audio_text || ""), audioUrl };
       }));
       return json({ ok: true, questions });
     }
@@ -93,6 +92,8 @@ Deno.serve(async (req) => {
     if (questionError) throw questionError;
     if (!question) return json({ error: "HSK question not found." }, 404);
     if (!question.audio_text || !question.audio_text.trim()) return json({ error: "This question has no Mandarin audio script." }, 422);
+
+    if (!geminiKey) return json({ error: "Add GEMINI_API_KEY to Supabase Edge Function secrets before generating HSK audio." }, 503);
 
     const ttsPrompt = "Speak in clear, standard Mainland Mandarin (Putonghua), with natural pronunciation and a measured pace suitable for beginner language learners. Read the following Chinese text exactly as written. Do not translate, explain, add, or omit any words:\n\n" + question.audio_text.trim();
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent", {
