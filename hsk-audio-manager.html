@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HSK Listening Audio Review · EduAssess</title>
+<style>
+:root{--ink:#17233b;--muted:#64748b;--line:#e3e8f2;--bg:#f5f7fc;--brand:#4f46e5;--good:#047857}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}header{background:linear-gradient(120deg,#18264a,#3730a3);color:white;padding:24px 18px}header>div,main{max-width:900px;margin:auto}header a{color:#e0e7ff;text-decoration:none}h1{margin:14px 0 4px;font-size:30px}main{padding:22px 16px 50px}.card,.item{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;margin:12px 0}.muted{color:var(--muted);font-size:13px}.status{padding:12px 14px;border-radius:10px;background:#eef2ff;color:#3730a3;margin:14px 0}.status.bad{background:#fef2f2;color:#991b1b}.status.good{background:#ecfdf5;color:#065f46}select,button{font:inherit;border-radius:9px;padding:9px 12px;border:1px solid #cbd5e1}select{min-width:240px;background:#fff}button{background:var(--brand);color:white;border:0;font-weight:700;cursor:pointer}button.alt{background:#eef2ff;color:#3730a3}button:disabled{opacity:.5;cursor:not-allowed}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.item h3{margin:0 0 5px}.tag{display:inline-block;padding:3px 8px;border-radius:99px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:700}.item audio{display:block;width:min(100%,450px);margin:12px 0}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.script{font-size:19px;font-weight:650}.hidden{display:none!important}
+</style></head>
+<body><header><div><a href="assessment-library.html">← Assessment Centre</a><h1>HSK Listening Audio Review</h1><p>Generate Mandarin clips once, listen to each one, then approve it for student tests.</p></div></header>
+<main><div id="status" class="status">Connecting to your teacher account…</div>
+<section class="card"><label for="school"><strong>School</strong></label><p class="muted">Choose the school whose HSK content you manage.</p><select id="school"></select><div class="actions"><button id="refresh" class="alt">Refresh audio list</button></div></section>
+<section id="list"></section>
+<section class="card"><h3>Review carefully</h3><p class="muted">Generated audio is not available to students until you listen to it and select “Approve for students”. Check that the Mandarin pronunciation is clear, natural and matches the displayed script exactly. The voice is standard Mainland Mandarin (普通话).</p></section>
+</main>
+<script>
+const DEFAULT_URL='https://wappdiduuulrrnaczaxl.supabase.co',DEFAULT_KEY='sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2';
+const $=id=>document.getElementById(id);
+let sb=null,user=null,session=null,schools=[];
+function status(msg,kind=''){$('status').textContent=msg;$('status').className='status '+kind}
+async function connect(){
+ let saved={};try{saved=JSON.parse(localStorage.getItem('sap_supabase_public_config_v1')||'{}')}catch{}
+ const cfg={url:saved.url||DEFAULT_URL,key:saved.key||DEFAULT_KEY};
+ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2');sb=createClient(cfg.url,cfg.key);
+ const s=await sb.auth.getSession();session=s.data.session;if(!session)throw new Error('Please sign in through the Teacher Dashboard first.');
+ user=session.user;
+ const {data,error}=await sb.from('school_memberships').select('school_id,role,schools(id,name,is_active)').eq('user_id',user.id);
+ if(error)throw error;
+ schools=(data||[]).filter(x=>x.schools&&x.schools.is_active&&['owner','admin','teacher'].includes(x.role));
+ if(!schools.length)throw new Error('Your account does not have teacher access to an active school.');
+ $('school').innerHTML=schools.map(x=>'<option value="'+x.school_id+'">'+x.schools.name+' · '+x.role+'</option>').join('');
+ $('school').onchange=load;
+ await load();
+}
+async function callFunction(payload){
+ const res=await fetch(DEFAULT_URL+'/functions/v1/hsk-audio',{method:'POST',headers:{'Content-Type':'application/json','apikey':DEFAULT_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({...payload,schoolId:$('school').value})});
+ const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'HSK audio request failed ('+res.status+').');return data;
+}
+async function load(){
+ try{status('Loading HSK listening scripts…');const data=await callFunction({action:'list'});const host=$('list');host.innerHTML='';
+ for(const q of data.questions||[]){
+  const item=document.createElement('article');item.className='item';
+  const state=q.reviewed?'Approved for students':q.status==='ready'?'Generated · awaiting review':q.status==='failed'?'Generation failed':'Audio pending';
+  item.innerHTML='<div class="row"><span class="tag">'+q.questionId+'</span><span class="muted">'+state+'</span></div><h3>HSK 1 Listening</h3><p class="script">'+(q.hasScript?'Mandarin script available':'No audio script')+'</p>'+(q.audioUrl?'<audio controls preload="none" src="'+q.audioUrl+'">Audio playback is not supported.</audio>':'')+'<div class="actions">'+(q.status!=='ready'?'<button data-generate>Generate Mandarin audio</button>':'')+(q.status==='ready'&&!q.reviewed?'<button data-approve>Approve for students</button>':'')+'</div>';
+  const gen=item.querySelector('[data-generate]');if(gen)gen.onclick=()=>runQuestion(q.questionId,'generate',gen);
+  const approve=item.querySelector('[data-approve]');if(approve)approve.onclick=()=>runQuestion(q.questionId,'approve',approve);
+  host.appendChild(item);
+ }
+ status('Loaded '+(data.questions||[]).length+' HSK 1 listening items. Review each generated clip before approving.','good');
+ }catch(e){status(e.message,'bad')}
+}
+async function runQuestion(questionId,action,button){
+ button.disabled=true;const label=button.textContent;button.textContent=action==='generate'?'Generating…':'Approving…';
+ try{await callFunction({action,questionId});await load()}catch(e){status(e.message,'bad');button.disabled=false;button.textContent=label}
+}
+$('refresh').onclick=load;
+connect().catch(e=>status(e.message,'bad'));
+</script></body></html>
