@@ -26,6 +26,12 @@ function safeQuestion(q: any) {
     options: Array.isArray(q.options) ? q.options.map((o: any, index: number) => ({ text: String(o.text ?? "").trim(), index })).filter((o: any) => o.text.length > 0) : [],
   };
 }
+function safeHskMetadata(value: any) {
+  const imageSvg = typeof value?.imageSvg === "string" ? value.imageSvg : "";
+  // Only the student-facing illustration is allowed through; never expose arbitrary bank metadata.
+  return imageSvg && imageSvg.length <= 20000 ? { imageSvg } : {};
+}
+
 function inWindow(a: any) {
   const now = Date.now();
   return (!a.opens_at || Date.parse(a.opens_at) <= now) && (!a.closes_at || Date.parse(a.closes_at) > now);
@@ -86,6 +92,132 @@ Deno.serve(async (req) => {
       return json({ error: "Your session has expired. Please sign in again." }, 401);
     }
     await db.from("student_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+
+    // HSK diagnostic uses its own secure question bank and scoring path.
+    if (action === "hsk-status") {
+      const { data: progress, error } = await db.from("hsk_skill_progress").select("skill,level,best_score,passed,attempts,last_attempt_at").eq("student_id", session.student_id).order("level", { ascending: true });
+      if (error) throw error;
+      const skills = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar","writing"];
+      const rows = progress || [];
+      const { data: bankRows, error: bankError } = await db.from("hsk_questions")
+        .select("skill,level,options,audio_status,audio_reviewed,audio_path,image_path,metadata,is_published")
+        .eq("is_published", true).limit(1000);
+      if (bankError) throw bankError;
+      const questionCount = (skill: string, level: number) => (bankRows || []).filter((q: any) =>
+        q.skill === skill && Number(q.level) === level &&
+        Array.isArray(q.options) && q.options.length >= 2 &&
+        (skill !== "listening" || (q.audio_status === "ready" && q.audio_reviewed === true && !!q.audio_path)) &&
+        (skill !== "picture_recognition" || !!q.image_path || !!q.metadata?.imageSvg)
+      ).length;
+      const skillProgress = skills.map((skill) => ({
+        skill,
+        levels: [1,2,3].map((level) => {
+          const row = rows.find((x: any) => x.skill === skill && Number(x.level) === level);
+          const availableQuestions = questionCount(skill, level);
+          return row ? { level, score: Number(row.best_score), passed: !!row.passed, attempts: Number(row.attempts), ready: availableQuestions >= 15, questionCount: availableQuestions } :
+            { level, score: null, passed: false, attempts: 0, ready: availableQuestions >= 15, questionCount: availableQuestions };
+        }),
+        availableLevel: 1,
+      }));
+      for (const item of skillProgress) {
+        if (item.skill === "writing") item.availableLevel = item.levels[1].passed ? 3 : 2;
+        else if (item.levels[0].passed && item.levels[1].passed) item.availableLevel = 3;
+        else if (item.levels[0].passed) item.availableLevel = 2;
+      }
+      const coreLevel1 = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar"];
+      const coreFromLevel2 = [...coreLevel1,"writing"];
+      let overallLevel = 0;
+      for (const level of [1,2,3]) {
+        const required = level === 1 ? coreLevel1 : coreFromLevel2;
+        if (required.every((skill) => rows.some((x: any) => x.skill === skill && Number(x.level) === level && x.passed))) overallLevel = level;
+        else break;
+      }
+      return json({ ok: true, skills: skillProgress, overallLevel, thresholds: { pass: 75, borderlineFrom: 60 } });
+    }
+
+    if (action === "hsk-start") {
+      const skill = String(body.skill || "");
+      const level = Number(body.level);
+      const allowedSkills = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar","writing"];
+      if (!allowedSkills.includes(skill) || ![1,2,3].includes(level)) return json({ error: "Choose a valid HSK skill and level." }, 400);
+      if (skill === "writing" && level < 2) return json({ error: "Writing is not assessed at HSK 1 in this diagnostic." }, 400);
+      if (level > 1 && !(skill === "writing" && level === 2)) {
+        const { data: prior, error: priorError } = await db.from("hsk_skill_progress").select("passed").eq("student_id", session.student_id).eq("skill", skill).eq("level", level - 1).maybeSingle();
+        if (priorError) throw priorError;
+        if (!prior?.passed) return json({ error: "Pass HSK " + (level - 1) + " in this skill before starting HSK " + level + "." }, 403);
+      }
+      let query = db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,audio_status,audio_reviewed,metadata").eq("level", level).eq("skill", skill).eq("is_published", true);
+      if (skill === "listening") query = query.eq("audio_status", "ready").eq("audio_reviewed", true).not("audio_path", "is", null);
+      // Curated HSK picture items can carry a safe inline SVG in metadata; uploaded images use image_path.
+      const { data: pool, error: poolError } = await query.limit(200);
+      if (poolError) throw poolError;
+      const eligible = (pool || []).filter((q: any) => Array.isArray(q.options) && q.options.length >= 2 && q.options.length <= 6);
+      if (eligible.length < 15) return json({ error: "This HSK " + level + " " + skill.replaceAll("_"," ") + " question set is not ready yet. At least 15 reviewed questions with the required media are needed for the diagnostic and its confirmation round." }, 409);
+      const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, Math.min(15, shuffled.length));
+      const firstRound = selected.slice(0, 10);
+      const state = { skill, level, questionIds: selected.map((q: any) => q.question_id), round: 1, firstRoundIds: firstRound.map((q: any) => q.question_id), answerLog: [], startedAt: new Date().toISOString() };
+      const { data: attempt, error: attemptError } = await db.from("hsk_diagnostic_attempts").insert({ school_id: session.school_id, student_id: session.student_id, status: "in_progress", report: state }).select("id").single();
+      if (attemptError) throw attemptError;
+      const questions = await Promise.all(firstRound.map(async (q: any) => {
+        let audioUrl: string | null = null, imageUrl: string | null = null;
+        if (q.audio_path) { const { data } = await db.storage.from("hsk-media").createSignedUrl(q.audio_path, 900); audioUrl = data?.signedUrl || null; }
+        if (q.image_path) { const { data } = await db.storage.from("hsk-media").createSignedUrl(q.image_path, 900); imageUrl = data?.signedUrl || null; }
+        return { id:q.question_id, skill:q.skill, level:q.level, itemType:q.item_type, prompt:q.prompt, stimulus:q.stimulus, options:q.options.map((o:any,index:number)=>({text:String(o.text??o),index})), audioUrl, imageUrl, metadata:safeHskMetadata(q.metadata) };
+      }));
+      return json({ ok: true, attemptId: attempt.id, skill, level, round: 1, totalQuestions: selected.length, questions });
+    }
+
+    if (action === "hsk-submit") {
+      const attemptId = String(body.attemptId || ""), answers = body.answers;
+      if (!attemptId || !answers || typeof answers !== "object" || Array.isArray(answers)) return json({ error: "Missing HSK attempt or answers." }, 400);
+      const { data: attempt, error: attemptError } = await db.from("hsk_diagnostic_attempts").select("id,student_id,school_id,status,report").eq("id", attemptId).eq("student_id", session.student_id).eq("school_id", session.school_id).maybeSingle();
+      if (attemptError) throw attemptError;
+      if (!attempt || attempt.status !== "in_progress") return json({ error: "This HSK attempt is no longer active." }, 409);
+      const state = attempt.report || {}, skill = String(state.skill || ""), level = Number(state.level), round = Number(state.round || 1);
+      const currentIds: string[] = round === 1 ? state.firstRoundIds : (state.extraRoundIds || []);
+      if (!currentIds.length || Object.keys(answers).length > 30) return json({ error: "The answer set is invalid." }, 400);
+      const { data: questions, error: questionError } = await db.from("hsk_questions").select("question_id,answer_key").in("question_id", currentIds);
+      if (questionError) throw questionError;
+      const byId = new Map((questions || []).map((q:any)=>[q.question_id,q]));
+      if (byId.size !== currentIds.length) return json({ error: "Some questions are no longer available. Please restart this skill." }, 409);
+      const answerLog = currentIds.map((id) => {
+        const q:any = byId.get(id), raw = answers[id];
+        const chosen = typeof raw === "number" ? raw : (typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN);
+        const key = q.answer_key || {}, correctIndex = Number(key.correctIndex ?? key.index);
+        return { questionId:id, chosenIndex:Number.isInteger(chosen)?chosen:null, correct:Number.isInteger(chosen) && chosen === correctIndex };
+      });
+      const combinedLog = [...(state.answerLog || []), ...answerLog], combinedCorrect = combinedLog.filter((x:any)=>x.correct).length;
+      const percent = Math.round(combinedCorrect / combinedLog.length * 10000) / 100;
+      if (round === 1 && percent >= 60 && percent < 75 && Array.isArray(state.questionIds) && state.questionIds.length > 10) {
+        const extraIds = state.questionIds.slice(10,15);
+        const { data: extraQuestions, error: extraError } = await db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,metadata").in("question_id", extraIds);
+        if (extraError) throw extraError;
+        const nextState = { ...state, round:2, answerLog:combinedLog, extraRoundIds:extraIds };
+        const { error:updateError } = await db.from("hsk_diagnostic_attempts").update({report:nextState}).eq("id",attemptId).eq("student_id",session.student_id);
+        if (updateError) throw updateError;
+        const extraPayload = await Promise.all((extraQuestions||[]).map(async(q:any)=>{
+          let audioUrl:string|null=null,imageUrl:string|null=null;
+          if(q.audio_path){const {data}=await db.storage.from("hsk-media").createSignedUrl(q.audio_path,900);audioUrl=data?.signedUrl||null;}
+          if(q.image_path){const {data}=await db.storage.from("hsk-media").createSignedUrl(q.image_path,900);imageUrl=data?.signedUrl||null;}
+          return {id:q.question_id,skill:q.skill,level:q.level,itemType:q.item_type,prompt:q.prompt,stimulus:q.stimulus,options:(q.options||[]).map((o:any,index:number)=>({text:String(o.text??o),index})),audioUrl,imageUrl,metadata:safeHskMetadata(q.metadata)};
+        }));
+        return json({ok:true,continue:true,attemptId,round:2,questions:extraPayload,scoreSoFar:percent});
+      }
+      const passed = percent >= 75, borderline = percent >= 60 && percent < 75, completedAt = new Date().toISOString();
+      const report = {skill,level,score:percent,correct:combinedCorrect,questionsAnswered:combinedLog.length,passed,borderline,answerLog:combinedLog,completedAt};
+      const {error:resultError}=await db.from("hsk_skill_results").insert({attempt_id:attemptId,student_id:session.student_id,skill,level,questions_answered:combinedLog.length,correct_count:combinedCorrect,score_percent:percent,passed,status:passed?"passed":borderline?"borderline":"not_yet"});
+      if(resultError)throw resultError;
+      const {data:priorProgress,error:progressError}=await db.from("hsk_skill_progress").select("best_score,passed,attempts").eq("student_id",session.student_id).eq("skill",skill).eq("level",level).maybeSingle();
+      if(progressError)throw progressError;
+      const bestScore=Math.max(Number(priorProgress?.best_score||0),percent),bestPassed=!!priorProgress?.passed||passed;
+      const {error:upsertError}=await db.from("hsk_skill_progress").upsert({student_id:session.student_id,skill,level,best_score:bestScore,passed:bestPassed,attempts:Number(priorProgress?.attempts||0)+1,last_attempt_at:completedAt,updated_at:completedAt},{onConflict:"student_id,skill,level"});
+      if(upsertError)throw upsertError;
+      const {error:completeError}=await db.from("hsk_diagnostic_attempts").update({status:"completed",completed_at:completedAt,report}).eq("id",attemptId).eq("student_id",session.student_id);
+      if(completeError)throw completeError;
+      return json({ok:true,completed:true,skill,level,score:percent,correct:combinedCorrect,total:combinedLog.length,passed,borderline,nextLevelAvailable:passed&&level<3?level+1:null,report});
+    }
+
 
     if (action === "writing-list") {
       const { data: assignments, error } = await db.from("writing_assignments")
