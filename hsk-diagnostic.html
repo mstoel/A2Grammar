@@ -52,11 +52,14 @@ function renderProgress(data){
   const labels=skill.levels.map(lv=>'<span>HSK '+lv.level+(lv.passed?' ✓':'')+'</span>').join('');
   const details=skill.levels.map((lv,i)=>isWriting&&i===0?'HSK 1: N/A':('HSK '+lv.level+': '+(lv.score===null?'Not assessed':lv.score+'%'+(lv.passed?' · passed':' · not passed')))).join(' · ');
   let button='';
+  const next=skill.availableLevel, nextData=skill.levels[next-1];
   if(isWriting){
    button='<p class="muted">HSK 1: Not assessed · HSK 2 writing tasks are being prepared.</p>';
-  } else {
-   const next=skill.availableLevel;
+  } else if(nextData&&nextData.ready){
    button='<button data-skill="'+skill.skill+'" data-level="'+next+'">Start HSK '+next+'</button>';
+  } else {
+   const note=skill.skill==='listening'?'Mandarin audio is waiting for teacher review.':'The HSK '+next+' question set is being prepared.';
+   button='<p class="muted">'+esc(note)+'</p>';
   }
   card.innerHTML='<h3>'+skillNames[skill.skill]+'</h3><div class="bars">'+segs+'</div><div class="level-labels">'+labels+'</div><div class="scoreline">'+esc(details)+'</div><div class="actions">'+button+'</div>';
   const start=card.querySelector('button[data-skill]');if(start)start.onclick=()=>startSkill(start.dataset.skill,Number(start.dataset.level),start);
