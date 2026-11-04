@@ -55,15 +55,17 @@ values ('HSK Test School', 'hsk-test')
 on conflict (slug) do update set name = excluded.name, is_active = true;
 
 insert into public.classes (school_id, name)
-select id, 'HSK Test Class' from public.schools where slug = 'hsk-test'
+select id, 'M2' from public.schools where slug = 'hsk-test'
 on conflict (school_id, name) do nothing;
 
--- Dedicated disposable test login. Access code is HSKTEST2026! (case-insensitive).
+-- Disposable HSK copy of the existing M2 test-student identity.
+-- This does NOT copy or change the production EduAssess account.
+-- Test access code: HSKTEST2026! (case-insensitive).
 insert into public.students (school_id, class_id, student_code, display_name, access_code_hash, is_active)
-select s.id, c.id, 'HSK-TEST-01', 'HSK Test Student',
+select s.id, c.id, 'TEST-M2-001', 'Test Student',
        encode(digest(upper('HSKTEST2026!'), 'sha256'), 'hex'), true
 from public.schools s
-join public.classes c on c.school_id = s.id and c.name = 'HSK Test Class'
+join public.classes c on c.school_id = s.id and c.name = 'M2'
 where s.slug = 'hsk-test'
 on conflict (school_id, student_code) do update
 set display_name = excluded.display_name,
