@@ -106,10 +106,12 @@ Deno.serve(async (req) => {
         else if (item.levels[0].passed && item.levels[1].passed) item.availableLevel = 3;
         else if (item.levels[0].passed) item.availableLevel = 2;
       }
-      const core = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar"];
+      const coreLevel1 = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar"];
+      const coreFromLevel2 = [...coreLevel1,"writing"];
       let overallLevel = 0;
       for (const level of [1,2,3]) {
-        if (core.every((skill) => rows.some((x: any) => x.skill === skill && Number(x.level) === level && x.passed))) overallLevel = level;
+        const required = level === 1 ? coreLevel1 : coreFromLevel2;
+        if (required.every((skill) => rows.some((x: any) => x.skill === skill && Number(x.level) === level && x.passed))) overallLevel = level;
         else break;
       }
       return json({ ok: true, skills: skillProgress, overallLevel, thresholds: { pass: 75, borderlineFrom: 60 } });
