@@ -17,6 +17,7 @@ function newToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return hex(bytes);
 }
+function sanitizeEssayHtml(input: string) { const allowed = new Set(["p","br","strong","b","em","i","u","ul","ol","li","blockquote"]); return String(input||"").replace(/<!--[\\s\\S]*?-->/g,"").replace(/<\\s*(script|style|iframe|object|svg|math)[^>]*>[\\s\\S]*?<\\s*\\/\\s*\\1\\s*>/gi,"").replace(/<\\/?([a-z0-9]+)\\b[^>]*>/gi,(tag,name)=>{const n=name.toLowerCase();if(!allowed.has(n))return "";return /^<\\s*\\//.test(tag)?"</"+n+">":n==="br"?"<br>":"<"+n+">";}).slice(0,200000); }
 function safeQuestion(q: any) {
   return {
     id: String(q.id ?? ""),
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const { data: submissions, error: subErr } = await db.from("writing_submissions")
-        .select("id,assignment_id,draft_text,submitted_text,status,submitted_at,updated_at,teacher_scores,teacher_feedback,ai_review")
+        .select("id,assignment_id,draft_text,submitted_text,draft_html,submitted_html,status,submitted_at,updated_at,teacher_scores,teacher_feedback,ai_review")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
       return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.is_open_test ? "Open Test" : (a.classes?.name || session.students.classes?.name || "") })), submissions: submissions || [] });
@@ -103,6 +104,7 @@ Deno.serve(async (req) => {
     if (action === "writing-save" || action === "writing-submit") {
       const assignmentId = String(body.assignmentId || "");
       const textValue = String(body.text || "");
+      const htmlValue = sanitizeEssayHtml(String(body.html || ""));
       if (!assignmentId) return json({ error: "Missing writing assignment." }, 400);
       if (textValue.length > 100000) return json({ error: "Your writing is too long to save in one submission." }, 413);
       const { data: assignment, error: aErr } = await db.from("writing_assignments")
@@ -121,10 +123,10 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       const values: any = {
         assignment_id: assignmentId, school_id: session.school_id, class_id: session.students.class_id,
-        student_id: session.student_id, draft_text: textValue, word_count: words,
+        student_id: session.student_id, draft_text: textValue, draft_html: htmlValue, word_count: words,
         status: action === "writing-submit" ? "submitted" : "draft", updated_at: now,
       };
-      if (action === "writing-submit") { values.submitted_text = textValue; values.submitted_at = now; }
+      if (action === "writing-submit") { values.submitted_text = textValue; values.submitted_html = htmlValue; values.submitted_at = now; }
       const { data: saved, error: saveErr } = await db.from("writing_submissions")
         .upsert(values, { onConflict: "assignment_id,student_id" }).select("id,status,word_count,updated_at,submitted_at").single();
       if (saveErr) throw saveErr;
