@@ -93,11 +93,22 @@ Deno.serve(async (req) => {
       if (error) throw error;
       const skills = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar","writing"];
       const rows = progress || [];
+      const { data: bankRows, error: bankError } = await db.from("hsk_questions")
+        .select("skill,level,options,audio_status,audio_reviewed,is_published")
+        .eq("is_published", true).limit(1000);
+      if (bankError) throw bankError;
+      const questionCount = (skill: string, level: number) => (bankRows || []).filter((q: any) =>
+        q.skill === skill && Number(q.level) === level &&
+        Array.isArray(q.options) && q.options.length >= 2 &&
+        (skill !== "listening" || (q.audio_status === "ready" && q.audio_reviewed === true))
+      ).length;
       const skillProgress = skills.map((skill) => ({
         skill,
         levels: [1,2,3].map((level) => {
           const row = rows.find((x: any) => x.skill === skill && Number(x.level) === level);
-          return row ? { level, score: Number(row.best_score), passed: !!row.passed, attempts: Number(row.attempts) } : { level, score: null, passed: false, attempts: 0 };
+          const availableQuestions = questionCount(skill, level);
+          return row ? { level, score: Number(row.best_score), passed: !!row.passed, attempts: Number(row.attempts), ready: availableQuestions >= 15, questionCount: availableQuestions } :
+            { level, score: null, passed: false, attempts: 0, ready: availableQuestions >= 15, questionCount: availableQuestions };
         }),
         availableLevel: 1,
       }));
