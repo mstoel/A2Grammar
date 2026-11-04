@@ -94,13 +94,14 @@ Deno.serve(async (req) => {
       const skills = ["listening","picture_recognition","vocabulary","character_recognition","reading","grammar","writing"];
       const rows = progress || [];
       const { data: bankRows, error: bankError } = await db.from("hsk_questions")
-        .select("skill,level,options,audio_status,audio_reviewed,is_published")
+        .select("skill,level,options,audio_status,audio_reviewed,audio_path,image_path,metadata,is_published")
         .eq("is_published", true).limit(1000);
       if (bankError) throw bankError;
       const questionCount = (skill: string, level: number) => (bankRows || []).filter((q: any) =>
         q.skill === skill && Number(q.level) === level &&
         Array.isArray(q.options) && q.options.length >= 2 &&
-        (skill !== "listening" || (q.audio_status === "ready" && q.audio_reviewed === true))
+        (skill !== "listening" || (q.audio_status === "ready" && q.audio_reviewed === true && !!q.audio_path)) &&
+        (skill !== "picture_recognition" || !!q.image_path || !!q.metadata?.imageSvg)
       ).length;
       const skillProgress = skills.map((skill) => ({
         skill,
