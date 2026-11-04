@@ -82,6 +82,6 @@ values
 on conflict (question_id) do update set
  prompt=excluded.prompt,stimulus=excluded.stimulus,options=excluded.options,
  answer_key=excluded.answer_key,explanation=excluded.explanation,
- audio_text=excluded.audio_text,audio_status=case when excluded.skill='listening' and hsk_questions.audio_status<>'ready' then 'pending' else public.hsk_questions.audio_status end,
+ audio_text=excluded.audio_text,audio_status=case when excluded.skill='listening' and hsk_questions.audio_status<>'ready' then 'pending' else hsk_questions.audio_status end,
  source_reference=excluded.source_reference,is_published=true,updated_at=now();
 commit;
