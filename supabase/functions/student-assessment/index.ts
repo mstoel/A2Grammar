@@ -26,6 +26,11 @@ function safeQuestion(q: any) {
     options: Array.isArray(q.options) ? q.options.map((o: any, index: number) => ({ text: String(o.text ?? "").trim(), index })).filter((o: any) => o.text.length > 0) : [],
   };
 }
+function safeHskMetadata(value: any) {
+  const imageSvg = typeof value?.imageSvg === "string" ? value.imageSvg : "";
+  // Only the student-facing illustration is allowed through; never expose arbitrary bank metadata.
+  return imageSvg && imageSvg.length <= 20000 ? { imageSvg } : {};
+}
 function inWindow(a: any) {
   const now = Date.now();
   return (!a.opens_at || Date.parse(a.opens_at) <= now) && (!a.closes_at || Date.parse(a.closes_at) > now);
@@ -157,7 +162,7 @@ Deno.serve(async (req) => {
         let audioUrl: string | null = null, imageUrl: string | null = null;
         if (q.audio_path) { const { data } = await db.storage.from("hsk-media").createSignedUrl(q.audio_path, 900); audioUrl = data?.signedUrl || null; }
         if (q.image_path) { const { data } = await db.storage.from("hsk-media").createSignedUrl(q.image_path, 900); imageUrl = data?.signedUrl || null; }
-        return { id:q.question_id, skill:q.skill, level:q.level, itemType:q.item_type, prompt:q.prompt, stimulus:q.stimulus, options:q.options.map((o:any,index:number)=>({text:String(o.text??o),index})), audioUrl, imageUrl, metadata:q.metadata||{} };
+        return { id:q.question_id, skill:q.skill, level:q.level, itemType:q.item_type, prompt:q.prompt, stimulus:q.stimulus, options:q.options.map((o:any,index:number)=>({text:String(o.text??o),index})), audioUrl, imageUrl, metadata:safeHskMetadata(q.metadata) };
       }));
       return json({ ok: true, attemptId: attempt.id, skill, level, round: 1, totalQuestions: selected.length, questions });
     }
@@ -194,7 +199,7 @@ Deno.serve(async (req) => {
           let audioUrl:string|null=null,imageUrl:string|null=null;
           if(q.audio_path){const {data}=await db.storage.from("hsk-media").createSignedUrl(q.audio_path,900);audioUrl=data?.signedUrl||null;}
           if(q.image_path){const {data}=await db.storage.from("hsk-media").createSignedUrl(q.image_path,900);imageUrl=data?.signedUrl||null;}
-          return {id:q.question_id,skill:q.skill,level:q.level,itemType:q.item_type,prompt:q.prompt,stimulus:q.stimulus,options:(q.options||[]).map((o:any,index:number)=>({text:String(o.text??o),index})),audioUrl,imageUrl,metadata:q.metadata||{}};
+          return {id:q.question_id,skill:q.skill,level:q.level,itemType:q.item_type,prompt:q.prompt,stimulus:q.stimulus,options:(q.options||[]).map((o:any,index:number)=>({text:String(o.text??o),index})),audioUrl,imageUrl,metadata:safeHskMetadata(q.metadata)};
         }));
         return json({ok:true,continue:true,attemptId,round:2,questions:extraPayload,scoreSoFar:percent});
       }
