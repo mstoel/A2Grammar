@@ -147,7 +147,7 @@ function stripPinyinHint(value){
  let text=String(value??'');
  const syllable='[a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿv]+[1-5]?';
  const sequence=syllable+'(?:\\s+'+syllable+')*';
- text=text.replace(new RegExp('\\\\s*\\\\(\\\\s*'+sequence+'\\\\s*\\\\)','gi'),'');
+ text=text.replace(new RegExp('\\s*\\(\\s*'+sequence+'\\s*\\)','gi'),'');
  return text.replace(/[ \\t]{2,}/g,' ').trim();
 }
 function formatChineseWithPinyin(value,showPinyin=true){
