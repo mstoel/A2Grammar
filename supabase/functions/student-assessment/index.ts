@@ -185,10 +185,11 @@ Deno.serve(async (req) => {
       const state = attempt.report || {}, skill = String(state.skill || ""), level = Number(state.level), round = Number(state.round || 1);
       const currentIds: string[] = round === 1 ? state.firstRoundIds : (state.extraRoundIds || []);
       if (!currentIds.length || Object.keys(answers).length > 30) return json({ error: "The answer set is invalid." }, 400);
-      const { data: questions, error: questionError } = await db.from("hsk_questions").select("question_id,answer_key,options,prompt,explanation,metadata").in("question_id", currentIds);
+      const reviewIds = Array.isArray(state.questionIds) ? state.questionIds : currentIds;
+      const { data: questions, error: questionError } = await db.from("hsk_questions").select("question_id,answer_key,options,prompt,explanation,metadata").in("question_id", reviewIds);
       if (questionError) throw questionError;
       const byId = new Map((questions || []).map((q:any)=>[q.question_id,q]));
-      if (byId.size !== currentIds.length) return json({ error: "Some questions are no longer available. Please restart this skill." }, 409);
+      if (currentIds.some((id) => !byId.has(id))) return json({ error: "Some questions are no longer available. Please restart this skill." }, 409);
       const answerLog = currentIds.map((id) => {
         const q:any = byId.get(id), raw = answers[id];
         const chosen = typeof raw === "number" ? raw : (typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN);
