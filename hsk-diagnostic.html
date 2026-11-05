@@ -19,7 +19,8 @@
 <div id="overall" class="muted">Your overall HSK level is calculated from the six core skills. HSK 2 and 3 vocabulary and character recognition are being introduced first; other skills will follow.</div>
 </section>
 <section id="progress" class="grid"></section>
-<section id="feedbackPanel" class="card hidden"></section>\n<section id="testPanel" class="card hidden">
+<section id="feedbackPanel" class="card hidden"></section>
+<section id="testPanel" class="card hidden">
 <div id="testHeading"></div>
 <form id="testForm"><div id="questions"></div><div class="actions"><button id="submitBtn" type="submit">Submit answers</button><button id="cancelBtn" type="button" class="alt">Return to progress</button></div></form>
 </section>
@@ -34,7 +35,8 @@ const SCHOOL_CONFIG={url:'https://wappdiduuulrrnaczaxl.supabase.co',key:'sb_publ
 const TOKEN='sap_student_session_v1';let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||'';
 const $=id=>document.getElementById(id);
 let progressData=null,currentAttempt=null,currentQuestions=[],currentRound=1;
-const skillNames={listening:'Listening',picture_recognition:'Picture recognition',vocabulary:'Vocabulary',character_recognition:'Character recognition',reading:'Reading',grammar:'Grammar',writing:'Writing'};\nfunction skillLabel(skill,level){return skill==='vocabulary'&&level>=2?'Vocabulary & Character Recognition':skillNames[skill]||skill;}
+const skillNames={listening:'Listening',picture_recognition:'Picture recognition',vocabulary:'Vocabulary',character_recognition:'Character recognition',reading:'Reading',grammar:'Grammar',writing:'Writing'};
+function skillLabel(skill,level){return skill==='vocabulary'&&level>=2?'Vocabulary & Character Recognition':skillNames[skill]||skill;}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function status(message,kind=''){$('status').textContent=message;$('status').className='status '+kind}
 async function api(body){const res=await fetch(SCHOOL_CONFIG.url+'/functions/v1/student-assessment',{method:'POST',headers:{'Content-Type':'application/json','apikey':SCHOOL_CONFIG.key,...(token?{'Authorization':'Bearer '+token}:{})},body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'The request could not be completed.');return data}
