@@ -139,11 +139,11 @@ function pinyinForChinese(value){
  return chars.map(ch=>hskCharacterPinyin[ch]||'').filter(Boolean).join(' ');
 }
 function isChineseText(value){return /[\u3400-\u9fff]/.test(String(value??''))}
-function formatChineseWithPinyin(value){
+function formatChineseWithPinyin(value,showPinyin=true){
  const parts=String(value??'').split(/([\u3400-\u9fff]+)/g);
  return parts.map(part=>{
   if(!isChineseText(part))return esc(part);
-  const pinyin=pinyinForChinese(part);
+  const pinyin=showPinyin?pinyinForChinese(part):'';
   return esc(part)+(pinyin?' <span class="option-pinyin">('+esc(pinyin)+')</span>':'');
  }).join('');
 }
@@ -160,10 +160,10 @@ function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<spa
   const stimulusText=String(q.stimulus||'').trim();
   const stimulusAlreadyInPrompt=!!stimulusText&&isChineseText(stimulusText)&&promptText.includes(stimulusText);
   if(stimulusText&&skill!=='listening'&&!hideVocabularyAnswer&&!stimulusAlreadyInPrompt){
-   media+='<p>'+formatChineseWithPinyin(stimulusText)+'</p>';
+   media+='<p>'+formatChineseWithPinyin(stimulusText,q.metadata?.showPinyin!==false)+'</p>';
   }
-  el.innerHTML='<h3>'+(i+1)+'. '+formatChineseWithPinyin(promptText)+'</h3>'+media+q.options.map(o=>{
-   const chinese=isChineseText(o.text),pinyin=chinese?pinyinForChinese(o.text):'';
+  el.innerHTML='<h3>'+(i+1)+'. '+formatChineseWithPinyin(promptText,q.metadata?.showPinyin!==false)+'</h3>'+media+q.options.map(o=>{
+   const chinese=isChineseText(o.text),pinyin=chinese&&q.metadata?.showPinyin!==false?pinyinForChinese(o.text):'';
    const optionMarkup=chinese?'<span class="option-copy"><span class="option-chinese">'+esc(o.text)+'</span>'+(pinyin?'<span class="option-pinyin">'+esc(pinyin)+'</span>':'')+'</span>':'<span>'+esc(o.text)+'</span>';
    return '<label class="option"><input type="radio" name="'+esc(q.id)+'" value="'+o.index+'" required>'+optionMarkup+'</label>';
   }).join('');
