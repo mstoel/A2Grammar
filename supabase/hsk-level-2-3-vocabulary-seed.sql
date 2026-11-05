@@ -92,6 +92,70 @@ where level in (2,3)
   and skill in ('vocabulary','character_recognition')
   and question_id like 'hsk%';
 
+
+-- HSK 2-3 are one combined assessment per level. Keep all 30 questions in
+-- the vocabulary progress track; preserve the question direction in metadata.
+update public.hsk_questions
+set skill = 'vocabulary',
+    prompt = case question_id
+      when 'hsk2-character-recognition-01' then 'Choose the Chinese word for ''so / therefore''.'
+      when 'hsk2-character-recognition-02' then 'Choose the Chinese word for ''place''.'
+      when 'hsk2-character-recognition-03' then 'Choose the Chinese word for ''company''.'
+      when 'hsk2-character-recognition-04' then 'Choose the Chinese word for ''to travel''.'
+      when 'hsk2-character-recognition-05' then 'Choose the Chinese word for ''airport''.'
+      when 'hsk2-character-recognition-06' then 'Choose the Chinese word for ''cheap''.'
+      when 'hsk2-character-recognition-07' then 'Choose the Chinese word for ''should''.'
+      when 'hsk2-character-recognition-08' then 'Choose the Chinese word for ''to need''.'
+      when 'hsk3-character-recognition-01' then 'Choose the Chinese word for ''complicated''.'
+      when 'hsk3-character-recognition-02' then 'Choose the Chinese word for ''serious / careful''.'
+      when 'hsk3-character-recognition-03' then 'Choose the Chinese word for ''clear''.'
+      when 'hsk3-character-recognition-04' then 'Choose the Chinese word for ''to care about''.'
+      when 'hsk3-character-recognition-05' then 'Choose the Chinese word for ''world''.'
+      when 'hsk3-character-recognition-06' then 'Choose the Chinese word for ''history''.'
+      when 'hsk3-character-recognition-07' then 'Choose the Chinese word for ''news''.'
+      when 'hsk3-character-recognition-08' then 'Choose the Chinese word for ''transportation / traffic''.'
+      else prompt end,
+    stimulus = case when question_id in (
+      'hsk2-character-recognition-01','hsk2-character-recognition-02','hsk2-character-recognition-03','hsk2-character-recognition-04',
+      'hsk2-character-recognition-05','hsk2-character-recognition-06','hsk2-character-recognition-07','hsk2-character-recognition-08',
+      'hsk3-character-recognition-01','hsk3-character-recognition-02','hsk3-character-recognition-03','hsk3-character-recognition-04',
+      'hsk3-character-recognition-05','hsk3-character-recognition-06','hsk3-character-recognition-07','hsk3-character-recognition-08'
+    ) then '' else stimulus end,
+    options = case question_id
+      when 'hsk2-character-recognition-01' then '["但是","所以","因为","一起"]'::jsonb
+      when 'hsk2-character-recognition-02' then '["时间","公司","地方","机场"]'::jsonb
+      when 'hsk2-character-recognition-03' then '["学校","公司","医院","商店"]'::jsonb
+      when 'hsk2-character-recognition-04' then '["学习","旅行","工作","等待"]'::jsonb
+      when 'hsk2-character-recognition-05' then '["火车站","公共汽车站","机场","酒店"]'::jsonb
+      when 'hsk2-character-recognition-06' then '["贵","便宜","方便","困难"]'::jsonb
+      when 'hsk2-character-recognition-07' then '["需要","已经","应该","一起"]'::jsonb
+      when 'hsk2-character-recognition-08' then '["希望","需要","记得","开始"]'::jsonb
+      when 'hsk3-character-recognition-01' then '["简单","复杂","成功","方便"]'::jsonb
+      when 'hsk3-character-recognition-02' then '["认真","特别","便宜","一起"]'::jsonb
+      when 'hsk3-character-recognition-03' then '["清楚","复杂","重要","不同"]'::jsonb
+      when 'hsk3-character-recognition-04' then '["忘记","关心","发展","决定"]'::jsonb
+      when 'hsk3-character-recognition-05' then '["世界","文化","历史","环境"]'::jsonb
+      when 'hsk3-character-recognition-06' then '["新闻","历史","经验","发展"]'::jsonb
+      when 'hsk3-character-recognition-07' then '["新闻","世界","文化","变化"]'::jsonb
+      when 'hsk3-character-recognition-08' then '["交通","环境","机会","经验"]'::jsonb
+      else options end,
+    answer_key = case
+      when question_id in ('hsk2-character-recognition-01','hsk2-character-recognition-03','hsk2-character-recognition-04','hsk2-character-recognition-06','hsk2-character-recognition-08','hsk3-character-recognition-02','hsk3-character-recognition-04','hsk3-character-recognition-06','hsk3-character-recognition-08') then '{"correctIndex":1}'::jsonb
+      when question_id in ('hsk2-character-recognition-02','hsk2-character-recognition-07','hsk2-character-recognition-05','hsk3-character-recognition-01','hsk3-character-recognition-03','hsk3-character-recognition-05','hsk3-character-recognition-07') then '{"correctIndex":2}'::jsonb
+      else answer_key end,
+    metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object(
+      'questionDirection',
+      case when prompt ilike 'Choose the Chinese word for%' or question_id in (
+        'hsk2-character-recognition-01','hsk2-character-recognition-02','hsk2-character-recognition-03','hsk2-character-recognition-04',
+        'hsk2-character-recognition-05','hsk2-character-recognition-06','hsk2-character-recognition-07','hsk2-character-recognition-08',
+        'hsk3-character-recognition-01','hsk3-character-recognition-02','hsk3-character-recognition-03','hsk3-character-recognition-04',
+        'hsk3-character-recognition-05','hsk3-character-recognition-06','hsk3-character-recognition-07','hsk3-character-recognition-08'
+      ) then 'english_to_chinese' else 'chinese_to_english' end,
+      'showPinyin', level = 2
+    ),
+    updated_at = now()
+where level in (2,3) and question_id like 'hsk%';
+
 commit;
 
 -- Verify expected published counts: 15 items for each of the four level/skill groups.
