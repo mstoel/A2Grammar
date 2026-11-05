@@ -180,10 +180,31 @@ update public.hsk_questions set answer_key = case question_id
 where question_id like 'hsk%-character-recognition-%' and level in (2,3);
 
 
--- HSK 2 and HSK 3 assess recognition of Chinese characters without Pinyin hints.
--- Keep Pinyin in explanations/review only; never show it during the questions.
+-- Pinyin support is intentionally mixed: HSK 2 = 24/30 (80%),
+-- HSK 3 = 6/30 (20%). Remaining items test character recognition without hints.
+-- HSK 2: all 15 vocabulary items + character-recognition items 01–09.
+-- HSK 3: vocabulary items 01–06 only.
 update public.hsk_questions
-set metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object('showPinyin', false),
+set metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object(
+      'showPinyin',
+      case
+        when level = 2 and (
+          question_id like 'hsk2-vocabulary-%'
+          or question_id in (
+            'hsk2-character-recognition-01','hsk2-character-recognition-02',
+            'hsk2-character-recognition-03','hsk2-character-recognition-04',
+            'hsk2-character-recognition-05','hsk2-character-recognition-06',
+            'hsk2-character-recognition-07','hsk2-character-recognition-08',
+            'hsk2-character-recognition-09'
+          )
+        ) then true
+        when level = 3 and question_id in (
+          'hsk3-vocabulary-01','hsk3-vocabulary-02','hsk3-vocabulary-03',
+          'hsk3-vocabulary-04','hsk3-vocabulary-05','hsk3-vocabulary-06'
+        ) then true
+        else false
+      end
+    ),
     updated_at = now()
 where is_published = true
   and level in (2,3)
