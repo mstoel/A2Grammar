@@ -180,20 +180,15 @@ update public.hsk_questions set answer_key = case question_id
 where question_id like 'hsk%-character-recognition-%' and level in (2,3);
 
 
--- Mix Pinyin support within HSK 2: half the questions show Pinyin and half
--- require character recognition without it. HSK 3 remains Hanzi-only.
-with ranked as (
-  select question_id, level,
-         row_number() over (partition by level order by question_id) as rn
-  from public.hsk_questions
-  where is_published = true and level in (2,3) and skill = 'vocabulary'
-)
-update public.hsk_questions q
-set metadata = coalesce(q.metadata, '{}'::jsonb) ||
-      jsonb_build_object('showPinyin', ranked.level = 2 and (ranked.rn % 2 = 1)),
+-- HSK 2 and HSK 3 assess recognition of Chinese characters without Pinyin hints.
+-- Keep Pinyin in explanations/review only; never show it during the questions.
+update public.hsk_questions
+set metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object('showPinyin', false),
     updated_at = now()
-from ranked
-where q.question_id = ranked.question_id;
+where is_published = true
+  and level in (2,3)
+  and skill = 'vocabulary'
+  and question_id like 'hsk%';
 
 commit;
 
