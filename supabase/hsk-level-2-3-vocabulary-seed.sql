@@ -156,6 +156,29 @@ set skill = 'vocabulary',
     updated_at = now()
 where level in (2,3) and question_id like 'hsk%';
 
+
+-- Correct answer positions for the newly reversed English-to-Chinese items.
+update public.hsk_questions set answer_key = case question_id
+  when 'hsk2-character-recognition-01' then '{"correctIndex":1}'::jsonb
+  when 'hsk2-character-recognition-02' then '{"correctIndex":2}'::jsonb
+  when 'hsk2-character-recognition-03' then '{"correctIndex":1}'::jsonb
+  when 'hsk2-character-recognition-04' then '{"correctIndex":1}'::jsonb
+  when 'hsk2-character-recognition-05' then '{"correctIndex":2}'::jsonb
+  when 'hsk2-character-recognition-06' then '{"correctIndex":1}'::jsonb
+  when 'hsk2-character-recognition-07' then '{"correctIndex":2}'::jsonb
+  when 'hsk2-character-recognition-08' then '{"correctIndex":1}'::jsonb
+  when 'hsk3-character-recognition-01' then '{"correctIndex":1}'::jsonb
+  when 'hsk3-character-recognition-02' then '{"correctIndex":0}'::jsonb
+  when 'hsk3-character-recognition-03' then '{"correctIndex":0}'::jsonb
+  when 'hsk3-character-recognition-04' then '{"correctIndex":1}'::jsonb
+  when 'hsk3-character-recognition-05' then '{"correctIndex":0}'::jsonb
+  when 'hsk3-character-recognition-06' then '{"correctIndex":1}'::jsonb
+  when 'hsk3-character-recognition-07' then '{"correctIndex":0}'::jsonb
+  when 'hsk3-character-recognition-08' then '{"correctIndex":0}'::jsonb
+  else answer_key end,
+  updated_at = now()
+where question_id like 'hsk%-character-recognition-%' and level in (2,3);
+
 commit;
 
 -- Verify expected published counts: 15 items for each of the four level/skill groups.
