@@ -171,15 +171,19 @@ function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<spa
   if(q.metadata&&q.metadata.imageSvg){const svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(q.metadata.imageSvg);media+='<br><img class="media" src="'+svgUrl+'" alt="Picture prompt" style="width:180px;height:135px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;padding:8px">';}
   // Listening items must not reveal the audio transcript before the student answers.
   // Do not repeat a Chinese word when it is already included in the question prompt.
-  const promptText=String(q.prompt||'');
+  const rawPromptText=String(q.prompt||'');
+  // HSK 2–3 test items assess character recognition without Pinyin hints.
+  // HSK 1 keeps its existing pronunciation support.
+  const showQuestionPinyin=level===1&&q.metadata?.showPinyin!==false;
+  const promptText=level>=2?rawPromptText.replace(/\s*\([a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿ]+(?:\s+[a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿ]+)*\)/gi,''):rawPromptText;
   const hideVocabularyAnswer=skill==='vocabulary'&&/^choose the chinese word for\b/i.test(promptText.trim());
   const stimulusText=String(q.stimulus||'').trim();
   const stimulusAlreadyInPrompt=!!stimulusText&&isChineseText(stimulusText)&&promptText.includes(stimulusText);
   if(stimulusText&&skill!=='listening'&&!hideVocabularyAnswer&&!stimulusAlreadyInPrompt){
-   media+='<p>'+formatChineseWithPinyin(stimulusText,q.metadata?.showPinyin!==false)+'</p>';
+   media+='<p>'+formatChineseWithPinyin(stimulusText,showQuestionPinyin)+'</p>';
   }
-  el.innerHTML='<h3>'+(i+1)+'. '+formatChineseWithPinyin(promptText,q.metadata?.showPinyin!==false)+'</h3>'+media+q.options.map(o=>{
-   const chinese=isChineseText(o.text),pinyin=chinese&&q.metadata?.showPinyin!==false?pinyinForChinese(o.text):'';
+  el.innerHTML='<h3>'+(i+1)+'. '+formatChineseWithPinyin(promptText,showQuestionPinyin)+'</h3>'+media+q.options.map(o=>{
+   const chinese=isChineseText(o.text),pinyin=chinese&&showQuestionPinyin?pinyinForChinese(o.text):'';
    const optionMarkup=chinese?'<span class="option-copy"><span class="option-chinese">'+esc(o.text)+'</span>'+(pinyin?'<span class="option-pinyin">'+esc(pinyin)+'</span>':'')+'</span>':'<span>'+esc(o.text)+'</span>';
    return '<label class="option"><input type="radio" name="'+esc(q.id)+'" value="'+o.index+'" required>'+optionMarkup+'</label>';
   }).join('');
@@ -194,8 +198,10 @@ $('testForm').addEventListener('submit',async e=>{
   status('Scoring your answers…');const result=await api({action:'hsk-submit',attemptId:currentAttempt,answers});
   if(result.continue){currentRound=2;currentQuestions=result.questions||[];renderQuestions(result.skill,result.level,currentQuestions);status('Your score was in the confirmation range. Please answer these extra questions before your level is decided.');$('testPanel').scrollIntoView({behavior:'smooth',block:'start'});return}
   $('testPanel').classList.add('hidden');
-  const message='HSK '+result.level+' '+skillNames[result.skill]+': '+result.score+'% ('+result.correct+'/'+result.total+'). '+(result.passed?'Level passed! The next level in this skill is now unlocked.':result.borderline?'This level is not passed yet. Your result is saved; you can try again later.':'Keep practising this level and try again when you are ready.');
+  showHskFeedback(result);
+  const message='HSK '+result.level+' '+skillLabel(result.skill,result.level)+': '+result.score+'% ('+result.correct+'/'+result.total+'). '+(result.passed?'Level passed! The next level is now unlocked.':result.borderline?'This level is not passed yet. Your result is saved; you can try again later.':'Keep practising this level and try again when you are ready.');
   await refresh();
+  $('feedbackPanel').classList.remove('hidden');
   status(message,result.passed?'good':'');
  }catch(err){status(err.message,'bad')}finally{$('submitBtn').disabled=false}
 });
