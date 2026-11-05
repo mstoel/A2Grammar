@@ -141,6 +141,15 @@ function pinyinForChinese(value){
  return chars.map(ch=>hskCharacterPinyin[ch]||'').filter(Boolean).join(' ');
 }
 function isChineseText(value){return /[\u3400-\u9fff]/.test(String(value??''))}
+// Remove embedded Pinyin hints from all HSK 2–3 question-facing text.
+// Keep the original question bank unchanged so answer review can still show Pinyin.
+function stripPinyinHint(value){
+ let text=String(value??'');
+ const syllable='[a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿv]+[1-5]?';
+ const sequence=syllable+'(?:\\s+'+syllable+')*';
+ text=text.replace(new RegExp('\\\\s*\\\\(\\\\s*'+sequence+'\\\\s*\\\\)','gi'),'');
+ return text.replace(/[ \\t]{2,}/g,' ').trim();
+}
 function formatChineseWithPinyin(value,showPinyin=true){
  const parts=String(value??'').split(/([\u3400-\u9fff]+)/g);
  return parts.map(part=>{
@@ -177,14 +186,15 @@ function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<spa
   const showQuestionPinyin=level===1&&q.metadata?.showPinyin!==false;
   const promptText=level>=2?rawPromptText.replace(/\s*\([a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿ]+(?:\s+[a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿ]+)*\)/gi,''):rawPromptText;
   const hideVocabularyAnswer=skill==='vocabulary'&&/^choose the chinese word for\b/i.test(promptText.trim());
-  const stimulusText=String(q.stimulus||'').trim();
+  const stimulusText=(level>=2?stripPinyinHint(q.stimulus):String(q.stimulus||'').trim());
   const stimulusAlreadyInPrompt=!!stimulusText&&isChineseText(stimulusText)&&promptText.includes(stimulusText);
   if(stimulusText&&skill!=='listening'&&!hideVocabularyAnswer&&!stimulusAlreadyInPrompt){
    media+='<p>'+formatChineseWithPinyin(stimulusText,showQuestionPinyin)+'</p>';
   }
   el.innerHTML='<h3>'+(i+1)+'. '+formatChineseWithPinyin(promptText,showQuestionPinyin)+'</h3>'+media+q.options.map(o=>{
-   const chinese=isChineseText(o.text),pinyin=chinese&&showQuestionPinyin?pinyinForChinese(o.text):'';
-   const optionMarkup=chinese?'<span class="option-copy"><span class="option-chinese">'+esc(o.text)+'</span>'+(pinyin?'<span class="option-pinyin">'+esc(pinyin)+'</span>':'')+'</span>':'<span>'+esc(o.text)+'</span>';
+   const optionText=level>=2?stripPinyinHint(o.text):String(o.text??'');
+   const chinese=isChineseText(optionText),pinyin=chinese&&showQuestionPinyin?pinyinForChinese(optionText):'';
+   const optionMarkup=chinese?'<span class="option-copy"><span class="option-chinese">'+esc(optionText)+'</span>'+(pinyin?'<span class="option-pinyin">'+esc(pinyin)+'</span>':'')+'</span>':'<span>'+esc(optionText)+'</span>';
    return '<label class="option"><input type="radio" name="'+esc(q.id)+'" value="'+o.index+'" required>'+optionMarkup+'</label>';
   }).join('');
   $('questions').appendChild(el);
