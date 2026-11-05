@@ -181,9 +181,11 @@ function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<spa
   // Listening items must not reveal the audio transcript before the student answers.
   // Do not repeat a Chinese word when it is already included in the question prompt.
   const rawPromptText=String(q.prompt||'');
-  // HSK 2–3 test items assess character recognition without Pinyin hints.
-  // HSK 1 keeps its existing pronunciation support.
-  const showQuestionPinyin=level===1&&q.metadata?.showPinyin!==false;
+  // HSK 1 keeps its existing pronunciation support. For HSK 2–3,
+  // each question follows its showPinyin metadata flag (80% at HSK 2; 20% at HSK 3).
+  const showQuestionPinyin=level===1
+   ? q.metadata?.showPinyin!==false
+   : q.metadata?.showPinyin===true;
   const promptText=level>=2?rawPromptText.replace(/\s*\([a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿ]+(?:\s+[a-züāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜńňḿ]+)*\)/gi,''):rawPromptText;
   const hideVocabularyAnswer=skill==='vocabulary'&&/^choose the chinese word for\b/i.test(promptText.trim());
   const stimulusText=(level>=2?stripPinyinHint(q.stimulus):String(q.stimulus||'').trim());
