@@ -15,11 +15,11 @@
 <div id="sessionBar" class="muted hidden" style="margin:0 0 14px;display:flex;justify-content:space-between;gap:12px;align-items:center"><span id="studentLabel"></span><button id="logoutBtn" class="alt" type="button">Sign out</button></div>
 <section id="intro" class="card">
 <h2>Your Chinese progress</h2>
-<p class="muted">Each skill progresses independently. You can move to HSK 2 or HSK 3 in a skill only after passing the previous level in that same skill. A score of 75% or higher passes a level; scores from 60% to 74% trigger extra confirmation questions.</p>
+<p class="muted">HSK 1 keeps its original skill-by-skill format. HSK 2 and HSK 3 combine vocabulary and character recognition in one test. A score of 75% or higher passes a level; scores from 60% to 74% trigger extra confirmation questions.</p>
 <div id="overall" class="muted">Your overall HSK level is calculated from the six core skills. HSK 2 and 3 vocabulary and character recognition are being introduced first; other skills will follow.</div>
 </section>
 <section id="progress" class="grid"></section>
-<section id="testPanel" class="card hidden">
+<section id="feedbackPanel" class="card hidden"></section>\n<section id="testPanel" class="card hidden">
 <div id="testHeading"></div>
 <form id="testForm"><div id="questions"></div><div class="actions"><button id="submitBtn" type="submit">Submit answers</button><button id="cancelBtn" type="button" class="alt">Return to progress</button></div></form>
 </section>
@@ -34,7 +34,7 @@ const SCHOOL_CONFIG={url:'https://wappdiduuulrrnaczaxl.supabase.co',key:'sb_publ
 const TOKEN='sap_student_session_v1';let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||'';
 const $=id=>document.getElementById(id);
 let progressData=null,currentAttempt=null,currentQuestions=[],currentRound=1;
-const skillNames={listening:'Listening',picture_recognition:'Picture recognition',vocabulary:'Vocabulary',character_recognition:'Character recognition',reading:'Reading',grammar:'Grammar',writing:'Writing'};
+const skillNames={listening:'Listening',picture_recognition:'Picture recognition',vocabulary:'Vocabulary',character_recognition:'Character recognition',reading:'Reading',grammar:'Grammar',writing:'Writing'};\nfunction skillLabel(skill,level){return skill==='vocabulary'&&level>=2?'Vocabulary & Character Recognition':skillNames[skill]||skill;}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function status(message,kind=''){$('status').textContent=message;$('status').className='status '+kind}
 async function api(body){const res=await fetch(SCHOOL_CONFIG.url+'/functions/v1/student-assessment',{method:'POST',headers:{'Content-Type':'application/json','apikey':SCHOOL_CONFIG.key,...(token?{'Authorization':'Bearer '+token}:{})},body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'The request could not be completed.');return data}
@@ -63,14 +63,14 @@ function renderProgress(data){
    const note=skill.skill==='listening'?'Mandarin audio is waiting for teacher review.':'The HSK '+next+' question set is being prepared.';
    button='<p class="muted">'+esc(note)+'</p>';
   }
-  card.innerHTML='<h3>'+skillNames[skill.skill]+'</h3><div class="bars">'+segs+'</div><div class="level-labels">'+labels+'</div><div class="scoreline">'+esc(details)+'</div><div class="actions">'+button+'</div>';
+  card.innerHTML='<h3>'+(skill.skill==='vocabulary'?'Vocabulary & Character Recognition':skillNames[skill.skill])+'</h3><div class="bars">'+segs+'</div><div class="level-labels">'+labels+'</div><div class="scoreline">'+esc(details)+'</div><div class="actions">'+button+'</div>';
   const start=card.querySelector('button[data-skill]');if(start)start.onclick=()=>startSkill(start.dataset.skill,Number(start.dataset.level),start);
   host.appendChild(card);
  }
 }
 async function refresh(){if(!token){$('loginPanel').classList.remove('hidden');$('sessionBar').classList.add('hidden');$('intro').classList.add('hidden');$('progress').innerHTML='';status('Please sign in through EduAssess to begin.');return}try{const data=await api({action:'hsk-status'});renderProgress(data);$('loginPanel').classList.add('hidden');$('intro').classList.remove('hidden');$('sessionBar').classList.remove('hidden');$('studentLabel').textContent='Signed in: '+(data.studentName||'HSK Test Student');status('Your HSK progress is saved to your EduAssess student account.','good')}catch(e){if(/session|sign in|expired/i.test(e.message)){token='';$('loginPanel').classList.remove('hidden');$('intro').classList.add('hidden');$('sessionBar').classList.add('hidden')}status(e.message,'bad')}}
 $('logoutBtn').onclick=()=>{location.href='student-portal.html?view=open'};
-async function startSkill(skill,level,button){button.disabled=true;try{status('Preparing HSK '+level+' '+skillNames[skill]+' questions…');const data=await api({action:'hsk-start',skill,level});currentAttempt=data.attemptId;currentQuestions=data.questions||[];currentRound=1;renderQuestions(skill,level,currentQuestions);$('testPanel').classList.remove('hidden');$('testPanel').scrollIntoView({behavior:'smooth',block:'start'});status('Answer each question, then submit your answers.')}catch(e){status(e.message,'bad')}finally{button.disabled=false}}
+async function startSkill(skill,level,button){button.disabled=true;try{status('Preparing HSK '+level+' '+skillLabel(skill,level)+' questions…');const data=await api({action:'hsk-start',skill,level});currentAttempt=data.attemptId;currentQuestions=data.questions||[];currentRound=1;renderQuestions(skill,level,currentQuestions);$('testPanel').classList.remove('hidden');$('testPanel').scrollIntoView({behavior:'smooth',block:'start'});status('Answer each question, then submit your answers.')}catch(e){status(e.message,'bad')}finally{button.disabled=false}}
 // HSK 1 pronunciation support for Chinese answer choices. English choices remain unchanged.
 const hskPinyin={
  '你好':'nǐ hǎo','谢谢':'xiè xie','再见':'zài jiàn','学生':'xué sheng','老师':'lǎo shī','朋友':'péng you','今天':'jīn tiān','昨天':'zuó tiān','明天':'míng tiān','星期':'xīng qī','喜欢':'xǐ huan','米饭':'mǐ fàn','牛奶':'niú nǎi','苹果':'píng guǒ','水果':'shuǐ guǒ','公共汽车':'gōng gòng qì chē','自行车':'zì xíng chē','桌子':'zhuō zi','椅子':'yǐ zi','学校':'xué xiào','医院':'yī yuàn','商店':'shāng diàn','杯子':'bēi zi','名字':'míng zi','什么':'shén me','哪儿':'nǎr','怎么':'zěn me','多少':'duō shao','几个':'jǐ ge','一个':'yí ge','一个人':'yí ge rén','中国':'zhōng guó','北京':'běi jīng','美国':'měi guó','妈妈':'mā ma','爸爸':'bà ba','姐姐':'jiě jie','哥哥':'gē ge','弟弟':'dì di','妹妹':'mèi mei','家里':'jiā lǐ','中国人':'zhōng guó rén','北京人':'běi jīng rén','看书':'kàn shū','学习':'xué xí','喝水':'hē shuǐ','吃饭':'chī fàn','苹果汁':'píng guǒ zhī','公共汽车站':'gōng gòng qì chē zhàn',
@@ -147,7 +147,21 @@ function formatChineseWithPinyin(value,showPinyin=true){
   return esc(part)+(pinyin?' <span class="option-pinyin">('+esc(pinyin)+')</span>':'');
  }).join('');
 }
-function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<span class="pill">HSK '+level+' · '+esc(skillNames[skill])+' · Round '+currentRound+'</span><h2>'+esc(skillNames[skill])+' questions</h2><p class="muted">Choose one answer for each question. Your answers are scored securely on the server.</p>';$('questions').innerHTML='';
+function showHskFeedback(result){
+ const panel=$('feedbackPanel');panel.classList.remove('hidden');
+ const pct=Number(result.score||0), types=result.breakdown||{};
+ const c=types.chinese_to_english||{correct:0,total:0,score:null}, e=types.english_to_chinese||{correct:0,total:0,score:null};
+ const strong=c.score===null||e.score===null?'':(c.score>=e.score?'Chinese word meaning recognition':'Chinese character selection');
+ const needs=c.score===null||e.score===null?'':(c.score<e.score?'Chinese word meaning recognition':'Chinese character selection');
+ const summary=pct>=75?'You have demonstrated a good understanding of this level.':pct>=60?'You are close to the pass mark. A little more focused practice should help.':'Keep practising the vocabulary and characters from this level before trying again.';
+ const advice=[];
+ if(c.score!==null)advice.push('<li><b>Chinese → English:</b> '+c.correct+'/'+c.total+' correct ('+c.score+'%). '+(c.score>=75?'You recognise the meanings of Chinese words well.':'Practise reading the Chinese words and recalling their English meanings. ')+'</li>');
+ if(e.score!==null)advice.push('<li><b>English → Chinese:</b> '+e.correct+'/'+e.total+' correct ('+e.score+'%). '+(e.score>=75?'You are good at selecting the correct Chinese characters from an English meaning.':'Practise matching English meanings to the correct Chinese characters. ')+'</li>');
+ const review=(result.review||[]).map((q,i)=>'<li><b>'+esc(q.prompt||'Question '+(i+1))+'</b> — '+(q.correct?'Correct':'Not quite')+(q.correctAnswer?' · Correct answer: '+esc(q.correctAnswer):'')+(q.explanation?' · '+esc(q.explanation):'')+'</li>').join('');
+ panel.innerHTML='<h2>HSK '+result.level+' feedback</h2><p class="pill">'+(result.passed?'Level passed': 'Keep practising')+'</p><h3>'+result.score+'% · '+result.correct+'/'+result.total+' correct</h3><p>'+summary+'</p><h3>What you did well and what to practise</h3><ul>'+advice.join('')+'</ul><h3>Question review</h3><ol>'+review+'</ol><p class="muted">'+(result.passed?'You have unlocked the next HSK level in this combined test.':'Your result has been saved. You can practise and try this level again.')+'</p>';
+ panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderQuestions(skill,level,questions){$('testHeading').innerHTML='<span class="pill">HSK '+level+' · '+esc(skillLabel(skill,level))+' · Round '+currentRound+'</span><h2>'+esc(skillLabel(skill,level))+' questions</h2><p class="muted">Choose one answer for each question. Your answers are scored securely on the server.</p>';$('questions').innerHTML='';
  questions.forEach((q,i)=>{
   const el=document.createElement('article');el.className='question';
   let media='';if(q.audioUrl)media+='<audio controls preload="none" class="media" src="'+esc(q.audioUrl)+'">Your browser does not support audio.</audio>';
