@@ -29,7 +29,10 @@ function safeQuestion(q: any) {
 function safeHskMetadata(value: any) {
   const imageSvg = typeof value?.imageSvg === "string" ? value.imageSvg : "";
   // Only the student-facing illustration is allowed through; never expose arbitrary bank metadata.
-  return imageSvg && imageSvg.length <= 20000 ? { imageSvg } : {};
+  const safe: any = {};
+  if (imageSvg && imageSvg.length <= 20000) safe.imageSvg = imageSvg;
+  if (typeof value?.showPinyin === "boolean") safe.showPinyin = value.showPinyin;
+  return safe;
 }
 
 function inWindow(a: any) {
