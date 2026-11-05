@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const { data: submissions, error: subErr } = await db.from("writing_submissions")
-        .select("id,assignment_id,draft_text,submitted_text,draft_html,submitted_html,status,submitted_at,updated_at,teacher_scores,teacher_feedback,ai_review")
+        .select("id,assignment_id,draft_text,submitted_text,draft_html,submitted_html,status,submitted_at,updated_at,teacher_scores,teacher_feedback,ai_review,integrity_report")
         .eq("student_id", session.student_id);
       if (subErr) throw subErr;
       return json({ className: session.students.classes?.name || "", assignments: (assignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => ({ ...a, className: a.is_open_test ? "Open Test" : (a.classes?.name || session.students.classes?.name || "") })), submissions: submissions || [] });
@@ -253,6 +253,22 @@ Deno.serve(async (req) => {
       const assignmentId = String(body.assignmentId || "");
       const textValue = String(body.text || "");
       const htmlValue = sanitizeEssayHtml(String(body.html || ""));
+      const rawIntegrity = body.integrityReport && typeof body.integrityReport === "object" && !Array.isArray(body.integrityReport) ? body.integrityReport : null;
+      const integrityReport = rawIntegrity ? {
+        version: 1,
+        startedAt: typeof rawIntegrity.startedAt === "string" ? rawIntegrity.startedAt.slice(0, 40) : null,
+        submittedAt: new Date().toISOString(),
+        durationSeconds: Math.max(0, Math.min(86400, Number(rawIntegrity.durationSeconds) || 0)),
+        wordCount: Math.max(0, Math.min(100000, Number(rawIntegrity.wordCount) || 0)),
+        pasteAttempts: Math.max(0, Math.min(100, Number(rawIntegrity.pasteAttempts) || 0)),
+        typingWords: Math.max(0, Math.min(100000, Number(rawIntegrity.typingWords) || 0)),
+        flags: Array.isArray(rawIntegrity.flags) ? rawIntegrity.flags.slice(0, 10).map((x: any) => String(x).slice(0, 60)) : [],
+        events: Array.isArray(rawIntegrity.events) ? rawIntegrity.events.slice(-100).map((x: any) => ({
+          type: String(x?.type || "").slice(0, 60), at: String(x?.at || "").slice(0, 40),
+          wordsAdded: Math.max(0, Math.min(100000, Number(x?.wordsAdded) || 0)),
+          intervalMs: Math.max(0, Math.min(3600000, Number(x?.intervalMs) || 0))
+        })) : []
+      } : null;
       if (!assignmentId) return json({ error: "Missing writing assignment." }, 400);
       if (textValue.length > 100000) return json({ error: "Your writing is too long to save in one submission." }, 413);
       const { data: assignment, error: aErr } = await db.from("writing_assignments")
@@ -274,7 +290,7 @@ Deno.serve(async (req) => {
         student_id: session.student_id, draft_text: textValue, draft_html: htmlValue, word_count: words,
         status: action === "writing-submit" ? "submitted" : "draft", updated_at: now,
       };
-      if (action === "writing-submit") { values.submitted_text = textValue; values.submitted_html = htmlValue; values.submitted_at = now; }
+      if (action === "writing-submit") { values.submitted_text = textValue; values.submitted_html = htmlValue; values.submitted_at = now; if (integrityReport) values.integrity_report = integrityReport; }
       const { data: saved, error: saveErr } = await db.from("writing_submissions")
         .upsert(values, { onConflict: "assignment_id,student_id" }).select("id,status,word_count,updated_at,submitted_at").single();
       if (saveErr) throw saveErr;
