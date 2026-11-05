@@ -467,7 +467,8 @@ Deno.serve(async (req) => {
       for (const a of attempts) if (!completedById.has(a.assessment_id)) completedById.set(a.assessment_id, a);
       const { data: writingAssignments, error: writingErr } = await db.from("writing_assignments")
         .select("id,title,prompt,instructions,rubric,min_words,max_words,due_at,status,classes(name)")
-        .eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("status", "published")
+        .eq("school_id", session.school_id).eq("status", "published")
+        .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true")
         .order("created_at", { ascending: false });
       if (writingErr) throw writingErr;
       const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions")
