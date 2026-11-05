@@ -72,11 +72,16 @@ function integritySnapshot(){
  return {version:1,startedAt:integrity.startedAt,submittedAt:new Date().toISOString(),durationSeconds:elapsed,wordCount:words(plainText($('essay').innerHTML)),pasteAttempts:integrity.pasteAttempts,typingWords:integrity.typingWords,flags:[...integrity.flags],events:integrity.events.slice(-100)};
 }
 async function saveDraft(submit=false){if(!active||saving)return;saving=true;$('save').disabled=true;$('submit').disabled=true;try{const d=await api({action:submit?'writing-submit':'writing-save',assignmentId:active.id,text:plainText($('essay').innerHTML),html:cleanHtml($('essay').innerHTML),integrityReport:submit?integritySnapshot():undefined});$('saveState').textContent=submit?'Submitted':'Draft saved';$('savedAt').textContent=submit?'Submitted '+new Date(d.submission.submitted_at).toLocaleString():'Saved '+new Date(d.submission.updated_at).toLocaleTimeString();say(submit?(d.aiReview?'Essay submitted and AI feedback is ready.':'Essay submitted successfully. Your final version is locked.'+(d.aiAssessmentPending?' AI feedback is delayed: '+(d.aiAssessmentError||'please contact your teacher'):' AI assessment is being processed.')):'Draft saved.','good');if(submit){$('essay').disabled=true;await load();const refreshed=await api({action:'writing-list'});const updated=refreshed.submissions.find(s=>s.assignment_id===active.id);if(updated){renderReview(updated);if(updated.status==='reviewed')say('Your essay has been assessed. Your AI feedback is shown below.','good');}$('editorCard').classList.remove('hidden');$('listCard').classList.add('hidden');if(updated?.status==='reviewed')$('saveState').textContent='AI feedback ready';}else{$('save').disabled=false;$('submit').disabled=false}}catch(e){say(e.message,'bad');$('save').disabled=false;$('submit').disabled=false}finally{saving=false}}
-$('essay').addEventListener('input',()=>{
- const now=Date.now(),count=words(plainText($('essay').innerHTML)),delta=Math.max(0,count-integrity.lastWordCount),gap=now-integrity.lastInputAt;
+$('essay').addEventListener('input',e=>{
+ const now=Date.now(),count=words(plainText($('essay').innerHTML)),delta=Math.max(0,count-integrity.lastWordCount);
  integrity.typingWords+=delta;
- if(delta>=12&&gap<=2500)recordIntegrity('large_text_burst',{wordsAdded:delta,intervalMs:gap});
- if(delta>=8&&gap<=1200)recordIntegrity('very_fast_text_entry',{wordsAdded:delta,intervalMs:gap});
+ // Only flag a genuinely large single insertion. Normal keyboard input, fast typing,
+ // autocorrect and IME/composition input must not be treated as suspicious.
+ const inserted=typeof e.data==='string'?e.data:'';
+ const insertedWords=words(inserted);
+ if(!e.isComposing&&e.inputType==='insertText'&&inserted.length>=120&&insertedWords>=18){
+  recordIntegrity('large_text_burst',{wordsAdded:insertedWords,charactersAdded:inserted.length});
+ }
  integrity.lastInputAt=now;integrity.lastWordCount=count;
  updateCount();$('saveState').textContent='Unsaved changes';clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200)});function syncToolbar(){
  const editor=$('essay');
