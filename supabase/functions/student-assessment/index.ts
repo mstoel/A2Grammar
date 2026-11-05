@@ -107,8 +107,8 @@ Deno.serve(async (req) => {
         .eq("is_published", true).limit(1000);
       if (bankError) throw bankError;
       const questionCount = (skill: string, level: number) => (bankRows || []).filter((q: any) =>
-        q.skill === skill && Number(q.level) === level &&
-        Array.isArray(q.options) && q.options.length >= 2 &&
+        (level >= 2 && skill === "vocabulary" ? ["vocabulary","character_recognition"].includes(q.skill) : q.skill === skill) &&
+        Number(q.level) === level && Array.isArray(q.options) && q.options.length >= 2 &&
         (skill !== "listening" || (q.audio_status === "ready" && q.audio_reviewed === true && !!q.audio_path)) &&
         (skill !== "picture_recognition" || !!q.image_path || !!q.metadata?.imageSvg)
       ).length;
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
         levels: [1,2,3].map((level) => {
           const row = rows.find((x: any) => x.skill === skill && Number(x.level) === level);
           const availableQuestions = questionCount(skill, level);
-          return row ? { level, score: Number(row.best_score), passed: !!row.passed, attempts: Number(row.attempts), ready: availableQuestions >= 15, questionCount: availableQuestions } :
+          return row ? { level, score: Number(row.best_score), passed: !!row.passed, attempts: Number(row.attempts), ready: availableQuestions >= (level >= 2 && skill === "vocabulary" ? 30 : 15), questionCount: availableQuestions } :
             { level, score: null, passed: false, attempts: 0, ready: availableQuestions >= 15, questionCount: availableQuestions };
         }),
         availableLevel: 1,
@@ -145,21 +145,26 @@ Deno.serve(async (req) => {
       if (!allowedSkills.includes(skill) || ![1,2,3].includes(level)) return json({ error: "Choose a valid HSK skill and level." }, 400);
       if (skill === "writing" && level < 2) return json({ error: "Writing is not assessed at HSK 1 in this diagnostic." }, 400);
       if (level > 1 && !(skill === "writing" && level === 2)) {
-        const { data: prior, error: priorError } = await db.from("hsk_skill_progress").select("passed").eq("student_id", session.student_id).eq("skill", skill).eq("level", level - 1).maybeSingle();
+        const priorSkill = skill === "vocabulary" && level >= 2 ? "vocabulary" : skill;
+        const { data: prior, error: priorError } = await db.from("hsk_skill_progress").select("passed").eq("student_id", session.student_id).eq("skill", priorSkill).eq("level", level - 1).maybeSingle();
         if (priorError) throw priorError;
         if (!prior?.passed) return json({ error: "Pass HSK " + (level - 1) + " in this skill before starting HSK " + level + "." }, 403);
       }
-      let query = db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,audio_status,audio_reviewed,metadata").eq("level", level).eq("skill", skill).eq("is_published", true);
+      let query = db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,audio_status,audio_reviewed,metadata").eq("level", level).eq("is_published", true);
+      if (level >= 2 && skill === "vocabulary") query = query.in("skill", ["vocabulary","character_recognition"]);
+      else query = query.eq("skill", skill);
       if (skill === "listening") query = query.eq("audio_status", "ready").eq("audio_reviewed", true).not("audio_path", "is", null);
       // Curated HSK picture items can carry a safe inline SVG in metadata; uploaded images use image_path.
       const { data: pool, error: poolError } = await query.limit(200);
       if (poolError) throw poolError;
       const eligible = (pool || []).filter((q: any) => Array.isArray(q.options) && q.options.length >= 2 && q.options.length <= 6);
-      if (eligible.length < 15) return json({ error: "This HSK " + level + " " + skill.replaceAll("_"," ") + " question set is not ready yet. At least 15 reviewed questions with the required media are needed for the diagnostic and its confirmation round." }, 409);
+      const combinedLevelTest = level >= 2 && skill === "vocabulary";
+      const requiredCount = combinedLevelTest ? 30 : 15;
+      if (eligible.length < requiredCount) return json({ error: "This HSK " + level + " " + (combinedLevelTest ? "combined vocabulary and character recognition" : skill.replaceAll("_"," ")) + " question set is not ready yet. " + requiredCount + " reviewed questions are needed." }, 409);
       const shuffled = [...eligible].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, Math.min(15, shuffled.length));
-      const firstRound = selected.slice(0, 10);
-      const state = { skill, level, questionIds: selected.map((q: any) => q.question_id), round: 1, firstRoundIds: firstRound.map((q: any) => q.question_id), answerLog: [], startedAt: new Date().toISOString() };
+      const selected = shuffled.slice(0, requiredCount);
+      const firstRound = selected.slice(0, combinedLevelTest ? 20 : 10);
+      const state = { skill, level, combinedLevelTest, questionIds: selected.map((q: any) => q.question_id), round: 1, firstRoundIds: firstRound.map((q: any) => q.question_id), answerLog: [], startedAt: new Date().toISOString() };
       const { data: attempt, error: attemptError } = await db.from("hsk_diagnostic_attempts").insert({ school_id: session.school_id, student_id: session.student_id, status: "in_progress", report: state }).select("id").single();
       if (attemptError) throw attemptError;
       const questions = await Promise.all(firstRound.map(async (q: any) => {
@@ -180,7 +185,7 @@ Deno.serve(async (req) => {
       const state = attempt.report || {}, skill = String(state.skill || ""), level = Number(state.level), round = Number(state.round || 1);
       const currentIds: string[] = round === 1 ? state.firstRoundIds : (state.extraRoundIds || []);
       if (!currentIds.length || Object.keys(answers).length > 30) return json({ error: "The answer set is invalid." }, 400);
-      const { data: questions, error: questionError } = await db.from("hsk_questions").select("question_id,answer_key").in("question_id", currentIds);
+      const { data: questions, error: questionError } = await db.from("hsk_questions").select("question_id,answer_key,options,prompt,explanation,metadata").in("question_id", currentIds);
       if (questionError) throw questionError;
       const byId = new Map((questions || []).map((q:any)=>[q.question_id,q]));
       if (byId.size !== currentIds.length) return json({ error: "Some questions are no longer available. Please restart this skill." }, 409);
@@ -188,12 +193,12 @@ Deno.serve(async (req) => {
         const q:any = byId.get(id), raw = answers[id];
         const chosen = typeof raw === "number" ? raw : (typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN);
         const key = q.answer_key || {}, correctIndex = Number(key.correctIndex ?? key.index);
-        return { questionId:id, chosenIndex:Number.isInteger(chosen)?chosen:null, correct:Number.isInteger(chosen) && chosen === correctIndex };
+        return { questionId:id, chosenIndex:Number.isInteger(chosen)?chosen:null, correct:Number.isInteger(chosen) && chosen === correctIndex, direction:String(q.metadata?.questionDirection || (/^choose the chinese word for/i.test(String(q.prompt||"")) ? "english_to_chinese" : "chinese_to_english")) };
       });
       const combinedLog = [...(state.answerLog || []), ...answerLog], combinedCorrect = combinedLog.filter((x:any)=>x.correct).length;
       const percent = Math.round(combinedCorrect / combinedLog.length * 10000) / 100;
-      if (round === 1 && percent >= 60 && percent < 75 && Array.isArray(state.questionIds) && state.questionIds.length > 10) {
-        const extraIds = state.questionIds.slice(10,15);
+      if (round === 1 && percent >= 60 && percent < 75 && Array.isArray(state.questionIds) && state.questionIds.length > currentIds.length) {
+        const extraIds = state.questionIds.slice(currentIds.length);
         const { data: extraQuestions, error: extraError } = await db.from("hsk_questions").select("question_id,level,skill,item_type,prompt,stimulus,options,audio_path,image_path,metadata").in("question_id", extraIds);
         if (extraError) throw extraError;
         const nextState = { ...state, round:2, answerLog:combinedLog, extraRoundIds:extraIds };
@@ -208,7 +213,14 @@ Deno.serve(async (req) => {
         return json({ok:true,continue:true,attemptId,round:2,questions:extraPayload,scoreSoFar:percent});
       }
       const passed = percent >= 75, borderline = percent >= 60 && percent < 75, completedAt = new Date().toISOString();
-      const report = {skill,level,score:percent,correct:combinedCorrect,questionsAnswered:combinedLog.length,passed,borderline,answerLog:combinedLog,completedAt};
+      const directionStats: any = { chinese_to_english:{correct:0,total:0}, english_to_chinese:{correct:0,total:0} };
+      for (const item of combinedLog) { const key = item.direction === "english_to_chinese" ? "english_to_chinese" : "chinese_to_english"; directionStats[key].total++; if(item.correct) directionStats[key].correct++; }
+      for (const value of Object.values(directionStats) as any[]) value.score = value.total ? Math.round(value.correct / value.total * 100) : null;
+      const review = combinedLog.map((item:any) => {
+        const q:any = byId.get(item.questionId), opts = Array.isArray(q?.options) ? q.options : [], key = q?.answer_key || {}, correctIndex = Number(key.correctIndex ?? key.index);
+        return { prompt:q?.prompt || "", correct:item.correct, correctAnswer:opts[correctIndex]?.text ?? opts[correctIndex] ?? "", explanation:q?.explanation || "" };
+      });
+      const report = {skill,level,score:percent,correct:combinedCorrect,questionsAnswered:combinedLog.length,passed,borderline,answerLog:combinedLog,breakdown:directionStats,review,completedAt};
       const {error:resultError}=await db.from("hsk_skill_results").insert({attempt_id:attemptId,student_id:session.student_id,skill,level,questions_answered:combinedLog.length,correct_count:combinedCorrect,score_percent:percent,passed,status:passed?"passed":borderline?"borderline":"not_yet"});
       if(resultError)throw resultError;
       const {data:priorProgress,error:progressError}=await db.from("hsk_skill_progress").select("best_score,passed,attempts").eq("student_id",session.student_id).eq("skill",skill).eq("level",level).maybeSingle();
@@ -218,7 +230,7 @@ Deno.serve(async (req) => {
       if(upsertError)throw upsertError;
       const {error:completeError}=await db.from("hsk_diagnostic_attempts").update({status:"completed",completed_at:completedAt,report}).eq("id",attemptId).eq("student_id",session.student_id);
       if(completeError)throw completeError;
-      return json({ok:true,completed:true,skill,level,score:percent,correct:combinedCorrect,total:combinedLog.length,passed,borderline,nextLevelAvailable:passed&&level<3?level+1:null,report});
+      return json({ok:true,completed:true,skill,level,score:percent,correct:combinedCorrect,total:combinedLog.length,passed,borderline,nextLevelAvailable:passed&&level<3?level+1:null,breakdown:directionStats,review,report});
     }
 
 
