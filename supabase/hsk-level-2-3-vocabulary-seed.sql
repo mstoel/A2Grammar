@@ -85,6 +85,13 @@ on conflict (question_id) do update set
  is_published=true,
  updated_at=now();
 
+update public.hsk_questions
+set metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object('showPinyin', level = 2),
+    updated_at = now()
+where level in (2,3)
+  and skill in ('vocabulary','character_recognition')
+  and question_id like 'hsk%';
+
 commit;
 
 -- Verify expected published counts: 15 items for each of the four level/skill groups.
