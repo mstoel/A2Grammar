@@ -179,12 +179,29 @@ update public.hsk_questions set answer_key = case question_id
   updated_at = now()
 where question_id like 'hsk%-character-recognition-%' and level in (2,3);
 
+
+-- Mix Pinyin support within HSK 2: half the questions show Pinyin and half
+-- require character recognition without it. HSK 3 remains Hanzi-only.
+with ranked as (
+  select question_id, level,
+         row_number() over (partition by level order by question_id) as rn
+  from public.hsk_questions
+  where is_published = true and level in (2,3) and skill = 'vocabulary'
+)
+update public.hsk_questions q
+set metadata = coalesce(q.metadata, '{}'::jsonb) ||
+      jsonb_build_object('showPinyin', ranked.level = 2 and (ranked.rn % 2 = 1)),
+    updated_at = now()
+from ranked
+where q.question_id = ranked.question_id;
+
 commit;
 
--- Verify expected published counts: 15 items for each of the four level/skill groups.
-select level, skill, count(*) as published_questions
+-- Verify 30 combined questions per level and the Pinyin split.
+select level, skill, count(*) as published_questions,
+       count(*) filter (where coalesce((metadata->>'showPinyin')::boolean,false)) as with_pinyin,
+       count(*) filter (where not coalesce((metadata->>'showPinyin')::boolean,false)) as without_pinyin
 from public.hsk_questions
-where is_published = true and level in (2,3)
-  and skill in ('vocabulary','character_recognition')
+where is_published = true and level in (2,3) and skill = 'vocabulary'
 group by level, skill
 order by level, skill;
