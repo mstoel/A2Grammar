@@ -532,7 +532,7 @@ Deno.serve(async (req) => {
           a.engine_key === "essay-rubric-v1" ? "essay-rubric" :
           ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key) ? "adaptive-diagnostic" : "other",
         supported: a.engine_key === "mc-assessment-builder-v1" || ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key),
-        launchUrl: a.engine_key === "a2-adaptive-grammar-v1" ? "student-diagnostic.html" : a.engine_key === "b1-adaptive-grammar-v1" ? "b1-diagnostic.html" : null, ...availability(a),
+        launchUrl: a.engine_key === "a2-adaptive-grammar-v1" ? "student-diagnostic.html" : a.engine_key === "b1-adaptive-grammar-v1" ? "student-b1-diagnostic.html" : null, ...availability(a),
       }));
       return json({ student: session.students.display_name || session.students.student_code, assessments: items });
     }
