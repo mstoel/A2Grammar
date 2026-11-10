@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10223f">
+<title>Dictation Academy | EduAssess</title>
+<style>
+:root{--navy:#10223f;--navy2:#19365e;--blue:#3868e8;--cyan:#55d5cb;--ink:#17243a;--muted:#66758c;--line:#e0e7f0;--paper:#fff;--bg:#f5f8fc;--soft:#edf3ff;--green:#087c58;--red:#b42318;--amber:#9a6700}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:inherit;text-decoration:none}button,input{font:inherit}button{border:0;border-radius:11px;padding:11px 16px;background:var(--blue);color:white;font-weight:750;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}button.secondary{background:#edf3ff;color:#2447a5}button.ghost{background:transparent;color:#52627b;border:1px solid var(--line)}
+.top{background:var(--navy);color:white;padding:17px 22px}.top-inner{max-width:1120px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:16px}.brand{font-size:19px;font-weight:850;letter-spacing:-.04em}.brand span{color:var(--cyan)}.top a{color:#c7d5e8;font-size:13px}.wrap{max-width:1120px;margin:auto;padding:28px 18px 56px}
+.eyebrow{color:#3262cf;text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:850}.heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}.heading h1{font-size:clamp(27px,4vw,38px);letter-spacing:-.055em;margin:5px 0}.heading p{margin:0;color:var(--muted)}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 8px 26px #17243a06;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:17px}.kpi{background:#fff;border:1px solid var(--line);border-radius:15px;padding:17px}.kpi strong{display:block;font-size:26px;letter-spacing:-.04em}.kpi span{color:var(--muted);font-size:12px}.kpi.green strong{color:var(--green)}
+.level-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.level{border:1px solid var(--line);border-radius:14px;padding:15px;background:#fff;cursor:pointer;transition:.15s}.level:hover{border-color:#9bb5f4;transform:translateY(-1px)}.level.selected{border:2px solid var(--blue);padding:14px;background:#f8faff}.level.locked{opacity:.65;background:#f8fafc;cursor:not-allowed}.level-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.level-name{font-size:17px;font-weight:850}.tag{font-size:10px;font-weight:850;padding:4px 8px;border-radius:99px;background:#edf2f7;color:#59677c;white-space:nowrap}.tag.pass{background:#e8f7f0;color:#087c58}.tag.current{background:#eaf0ff;color:#3158bb}.meter{height:7px;border-radius:99px;background:#e9eef5;overflow:hidden;margin:13px 0 7px}.meter span{display:block;height:100%;background:linear-gradient(90deg,#3868e8,#55b8d6);border-radius:99px}.level-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}.detail-head h2{margin:0;font-size:24px;letter-spacing:-.04em}.detail-head p{margin:3px 0;color:var(--muted);font-size:13px}.detail-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}.detail-stat{background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:12px}.detail-stat strong{font-size:22px;display:block}.detail-stat span{font-size:11px;color:var(--muted)}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:20px 0 9px}.section-title h3{margin:0;font-size:16px}.section-title small{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 9px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}td:last-child,th:last-child{text-align:right}.rate{font-weight:850;color:var(--red)}.no-data{padding:16px;border:1px dashed #cbd5e1;border-radius:12px;color:var(--muted);font-size:13px}.notice{padding:12px 14px;border-radius:12px;background:#eef4ff;color:#3158a8;font-size:13px;margin:12px 0}.notice.warn{background:#fff7e5;color:#805800}.status{padding:12px 14px;border-radius:12px;background:#f1f5f9;color:#53627a;margin-bottom:15px;font-size:13px}.status.bad{background:#fff0ef;color:#a12b22}.status.good{background:#e8f7f0;color:#087c58}.hidden{display:none!important}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
+#testArea{position:fixed;inset:0;background:#10223fe8;z-index:10;display:grid;place-items:center;padding:15px}.test-card{background:#fff;width:min(100%,570px);max-height:92vh;overflow:auto;border-radius:20px;padding:24px}.test-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}.test-card h2{margin:12px 0 5px}.test-card p{color:var(--muted);font-size:13px}.audio{width:100%;margin:14px 0;background:#edf3ff;color:#234aa9}.answer{width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:11px;font-size:18px;outline:none}.answer:focus{border-color:var(--blue);box-shadow:0 0 0 3px #3868e81c}.test-progress{height:7px;background:#edf1f7;border-radius:99px;margin:12px 0;overflow:hidden}.test-progress span{display:block;height:100%;background:var(--blue)}.test-footer{display:flex;justify-content:space-between;gap:10px;margin-top:16px}.result-big{font-size:42px;font-weight:900;letter-spacing:-.06em;color:var(--green)}.word-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}.word-chip{padding:7px 6px;border-radius:8px;background:#e8f7f0;color:#087c58;text-align:center;font-size:11px;font-weight:750}.word-chip.unmastered{background:#f1f4f8;color:#8490a2}
+@media(max-width:700px){.level-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-stats{grid-template-columns:repeat(2,1fr)}.heading{display:block}.heading .actions{margin-top:12px}.kpis{gap:8px}.kpi{padding:12px}.kpi strong{font-size:22px}.card{padding:15px}.wrap{padding:20px 12px 42px}}
+@media(max-width:390px){.level-grid{grid-template-columns:1fr}.kpis{grid-template-columns:1fr}.word-grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-inner"><div class="brand">Edu<span>Assess</span> · Dictation Academy</div><a href="student-login.html">← Student dashboard</a></div></header>
+<main class="wrap">
+  <div class="heading"><div><div class="eyebrow">Listen · Spell · Progress</div><h1>My Dictation Journey</h1><p id="welcome">Build your spelling confidence, one word at a time.</p></div><div class="actions"><button class="ghost" id="refreshBtn">Refresh progress ↻</button></div></div>
+  <div id="status" class="status">Loading your vocabulary progress…</div>
+  <section class="kpis">
+    <div class="kpi green"><strong id="passedCount">—</strong><span>Levels passed</span></div>
+    <div class="kpi"><strong id="masteredCount">—</strong><span>Words mastered across levels</span></div>
+    <div class="kpi"><strong id="bankCount">3,250</strong><span>Total vocabulary words</span></div>
+  </section>
+  <section class="card">
+    <div class="section-title" style="margin-top:0"><h3>Choose your CEFR level</h3><small>Pass at 95% or higher · 24/25</small></div>
+    <div id="levelGrid" class="level-grid"></div>
+    <div class="notice">Passing unlocks the next level. Your 250-word mastery counter is separate, so you can return to earlier levels and keep building your vocabulary.</div>
+  </section>
+  <section id="detailPanel" class="card hidden">
+    <div class="detail-head"><div><div class="eyebrow">Level overview</div><h2 id="detailTitle">A1</h2><p id="detailSubtitle">Your progress in this word bank.</p></div><span id="detailBadge" class="tag">Not passed</span></div>
+    <div class="detail-stats">
+      <div class="detail-stat"><strong id="detailMastered">0/250</strong><span>Words mastered</span></div>
+      <div class="detail-stat"><strong id="detailRemaining">250</strong><span>Still to master</span></div>
+      <div class="detail-stat"><strong id="detailBest">—</strong><span>Best test score</span></div>
+      <div class="detail-stat"><strong id="detailAttempts">0</strong><span>Attempts</span></div>
+    </div>
+    <div class="meter"><span id="detailMeter" style="width:0%"></span></div>
+    <div class="level-meta"><span id="masteredLabel">0 mastered</span><span id="remainingLabel">250 remaining</span></div>
+    <div class="actions"><button id="startBtn">Start 25-word dictation</button><button id="backBtn" class="secondary">Back to all levels</button></div>
+    <div class="notice warn hidden" id="bankNotice"></div>
+    <div class="section-title"><h3>Difficult words</h3><small>More than 50% incorrect · at least 10 attempts</small></div>
+    <div id="hardWords"><div class="no-data">Loading difficult words…</div></div>
+    <div class="section-title"><h3>Your word bank</h3><small>Green = spelled correctly at least once</small></div>
+    <div id="wordGrid" class="word-grid"></div>
+    <div class="section-title"><h3>Assessment history</h3></div>
+    <div id="history"><div class="no-data">No completed attempts yet.</div></div>
+  </section>
+</main>
+<div id="testArea" class="hidden" role="dialog" aria-modal="true" aria-label="Dictation test">
+  <div class="test-card">
+    <div class="test-top"><span id="testLevel">A1 Dictation</span><button class="ghost" id="closeTest">Exit</button></div>
+    <div class="test-progress"><span id="testBar" style="width:0%"></span></div>
+    <div class="test-top"><span id="questionCount">Question 1 of 25</span><span id="replayCount">2 replays available</span></div>
+    <h2>Listen and type the word</h2><p>First listen to the word, then hear it used in a sentence. Type only the word you hear.</p>
+    <button class="audio" id="playAudio">🔊 Play word + sentence</button>
+    <input class="answer" id="typedAnswer" type="text" placeholder="Type the word here…" spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="off" inputmode="text">
+    <div class="test-footer"><button class="ghost" id="prevQuestion" disabled>Previous</button><button id="nextQuestion">Next word →</button></div>
+    <p id="testMessage" aria-live="polite"></p>
+  </div>
+</div>
+<script>
+const CONFIG={url:"https://wappdiduuulrrnaczaxl.supabase.co",key:"sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2"};
+const TOKEN="sap_student_session_v1",LEVELS=["Pre-A1","A1","A1+","A2","A2+","B1","B1+","B2","B2+","C1","C1+","C2","C2+"];
+const $=id=>document.getElementById(id);let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||"",levels=[],selectedLevel=null,detail=null,test=null,questionIndex=0,answers={},replays=2,tabSwitches=0;
+function setStatus(message,kind=""){const el=$("status");el.textContent=message;el.className="status "+kind}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function api(body){if(!token)throw Error("Your student session is missing. Please sign in again.");const res=await fetch(CONFIG.url+"/functions/v1/dictation-academy",{method:"POST",headers:{"Content-Type":"application/json","apikey":CONFIG.key,"Authorization":"Bearer "+token},body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||"The dictation service is not available yet.");return data}
+function renderLevels(){
+  const passed=levels.filter(x=>x.passed).length,mastered=levels.reduce((s,x)=>s+Number(x.mastered||0),0);
+  $("passedCount").textContent=passed+"/13";$("masteredCount").textContent=mastered.toLocaleString();$("bankCount").textContent=levels.reduce((s,x)=>s+Number(x.totalWords||0),0).toLocaleString()+"/3,250";
+  $("levelGrid").innerHTML=levels.map((l,i)=>{const p=Math.min(100,Math.round((Number(l.mastered||0)/250)*100));const state=l.passed?'<span class="tag pass">✓ Passed</span>':l.unlocked?'<span class="tag current">Available</span>':'<span class="tag">🔒 Locked</span>';return '<button type="button" class="level '+(!l.unlocked?'locked ':'')+(selectedLevel===l.level?'selected':'')+'" data-level="'+esc(l.level)+'" '+(!l.unlocked?'disabled':'')+'><div class="level-head"><span class="level-name">'+esc(l.level)+'</span>'+state+'</div><div class="meter"><span style="width:'+p+'%"></span></div><div class="level-meta"><span>'+Number(l.mastered||0)+'/250 mastered</span><span>'+p+'%</span></div><div class="level-meta" style="margin-top:7px"><span>'+Number(l.attempts||0)+' attempts</span><span>'+(l.bestScore===null?'No score':Number(l.bestScore).toFixed(0)+'% best')+'</span></div></button>'}).join("");
+  document.querySelectorAll("[data-level]").forEach(b=>b.addEventListener("click",()=>openLevel(b.dataset.level)));
+}
+async function loadDashboard(){
+  const d=await api({action:"dashboard"});levels=d.levels||[];$("welcome").textContent=d.student?"Welcome, "+d.student+". Keep going!":"Build your spelling confidence, one word at a time.";renderLevels();setStatus("Your vocabulary progress is up to date.","good");
+}
+async function openLevel(level){
+  selectedLevel=level;renderLevels();$("detailPanel").classList.remove("hidden");$("detailTitle").textContent=level+" Vocabulary";$("detailSubtitle").textContent="Track your personal mastery and see which words students find difficult."; $("hardWords").innerHTML='<div class="no-data">Loading…</div>';$("wordGrid").innerHTML="";$("history").innerHTML="";
+  try{detail=await api({action:"level-detail",level});renderDetail();$("detailPanel").scrollIntoView({behavior:"smooth",block:"start"})}catch(e){setStatus(e.message,"bad")}
+}
+function renderDetail(){
+  const d=detail,mastered=Number(d.mastered||0),total=Number(d.totalWords||0),p=total?mastered/total*100:0;
+  $("detailTitle").textContent=d.level+" Vocabulary";$("detailSubtitle").textContent=total+" active words in this level."; $("detailBadge").textContent=d.passed?"✓ Level passed":"Not passed yet";$("detailBadge").className="tag "+(d.passed?"pass":"");
+  $("detailMastered").textContent=mastered+"/"+total;$("detailRemaining").textContent=Math.max(0,total-mastered);$("detailBest").textContent=d.attempts?.length?Number(d.bestScore).toFixed(0)+"%":"—";$("detailAttempts").textContent=(d.attempts||[]).length;
+  $("detailMeter").style.width=Math.min(100,p)+"%";$("masteredLabel").textContent=mastered+" mastered";$("remainingLabel").textContent=Math.max(0,total-mastered)+" remaining";
+  $("bankNotice").classList.toggle("hidden",total===250);$("bankNotice").textContent="This level currently has "+total+" of 250 words published. A full test needs at least 25 active words; the complete level should contain 250.";
+  $("startBtn").disabled=total<25;$("startBtn").textContent=total<25?"Word bank not ready":"Start 25-word dictation";
+  const hard=d.difficultWords||[];$("hardWords").innerHTML=hard.length?'<table><thead><tr><th>Word</th><th>Attempts</th><th>Fail rate</th></tr></thead><tbody>'+hard.map(w=>'<tr><td><strong>'+esc(w.word)+'</strong></td><td>'+w.attempts+'</td><td class="rate">'+w.failRate+'%</td></tr>').join("")+'</tbody></table>':'<div class="no-data">No difficult words identified yet. A word appears here after at least 10 student attempts and a failure rate above 50%.</div>';
+  const words=d.words||[];$("wordGrid").innerHTML=words.map(w=>'<span class="word-chip '+(w.mastered?'':'unmastered')+'" title="'+(w.mastered?'Mastered':'Not yet mastered')+'">'+(w.mastered?'✓ ':'')+esc(w.word)+'</span>').join("");
+  const attempts=d.attempts||[];$("history").innerHTML=attempts.length?'<table><thead><tr><th>Date</th><th>Correct</th><th>Score</th><th>Result</th></tr></thead><tbody>'+attempts.map(a=>'<tr><td>'+new Date(a.completed_at).toLocaleDateString()+'</td><td>'+a.correct_count+'/25</td><td>'+Number(a.score_percent).toFixed(0)+'%</td><td>'+(Number(a.score_percent)>=95?'<span class="tag pass">Passed</span>':'<span class="tag">Try again</span>')+'</td></tr>').join("")+'</tbody></table>':'<div class="no-data">No completed attempts yet. Start your first dictation when you're ready.</div>';
+}
+$("refreshBtn").onclick=()=>loadDashboard().catch(e=>setStatus(e.message,"bad"));
+$("backBtn").onclick=()=>{$("detailPanel").classList.add("hidden");selectedLevel=null;renderLevels();window.scrollTo({top:0,behavior:"smooth"})};
+function speakCurrent(){
+  if(!test)return;const q=test.questions[questionIndex];if(!q)return;
+  if(!("speechSynthesis" in window)){setStatus("Audio playback is not supported in this browser.","bad");return}
+  speechSynthesis.cancel();const first=new SpeechSynthesisUtterance(q.word);first.lang="en-US";first.rate=.86;
+  const second=new SpeechSynthesisUtterance(q.sentence||q.word);second.lang="en-US";second.rate=.86;
+  first.onend=()=>speechSynthesis.speak(second);speechSynthesis.speak(first);
+}
+async function startTest(){
+  try{const d=await api({action:"start",level:selectedLevel});test=d;questionIndex=0;answers={};replays=2;$("testArea").classList.remove("hidden");showQuestion()}catch(e){setStatus(e.message,"bad")}
+}
+function showQuestion(){
+  const q=test.questions[questionIndex];$("testLevel").textContent=test.level+" Dictation";$("questionCount").textContent="Question "+(questionIndex+1)+" of 25";$("testBar").style.width=((questionIndex+1)/25*100)+"%";$("replayCount").textContent=replays+" replays available";
+  $("typedAnswer").value=answers[q.id]||"";$("typedAnswer").focus();$("prevQuestion").disabled=questionIndex===0;$("nextQuestion").textContent=questionIndex===24?"Submit dictation":"Next word →";$("testMessage").textContent="";replays=2;$("replayCount").textContent="2 replays available";
+}
+$("playAudio").onclick=()=>{if(replays<=0){$("testMessage").textContent="No replays left for this word.";return}replays--; $("replayCount").textContent=replays+" replays available";speakCurrent()};
+$("typedAnswer").addEventListener("input",e=>{if(test)answers[test.questions[questionIndex].id]=e.target.value});
+$("prevQuestion").onclick=()=>{if(questionIndex>0){questionIndex--;showQuestion()}};
+$("nextQuestion").onclick=async()=>{
+  if(questionIndex<24){questionIndex++;showQuestion();return}
+  $("nextQuestion").disabled=true;
+  try{const d=await api({action:"submit",attemptId:test.attemptId,answers});speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");test=null;await openLevel(selectedLevel);setStatus("Dictation complete: "+d.correct+"/25 ("+d.score+"%). "+(d.passed?"You passed and the next level is unlocked!":"You need 24 correct answers to pass. Keep practising!"),d.passed?"good":"");}
+  catch(e){$("testMessage").textContent=e.message}
+  finally{$("nextQuestion").disabled=false}
+};
+$("closeTest").onclick=()=>{speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");test=null;setStatus("Test exited. This unfinished attempt was not scored.")}
+document.addEventListener("visibilitychange",()=>{if(test&&document.hidden){tabSwitches++;$("testMessage").textContent="Leaving the assessment was detected. Your teacher may review this event."; }});
+$("startBtn").onclick=startTest;
+(async()=>{if(!token){setStatus("Please sign in through the EduAssess student portal first.","bad");return}try{await loadDashboard()}catch(e){setStatus(e.message,"bad")}})();
+</script>
+</body></html>
