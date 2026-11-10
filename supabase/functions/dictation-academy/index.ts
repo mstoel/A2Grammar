@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
         db.from("dictation_words").select("id,word,sentence").eq("level_code", level).eq("is_active", true).order("word"),
         db.from("dictation_responses").select("word_id,is_correct,created_at").eq("student_id", studentId).eq("level_code", level),
         db.from("dictation_attempts").select("score_percent,correct_count,total_questions,completed_at").eq("student_id", studentId).eq("level_code", level).eq("status", "completed").order("completed_at", { ascending: false }),
-        db.from("dictation_responses").select("word_id,is_correct").eq("level_code", level)
+        db.from("dictation_responses").select("word_id,is_correct").eq("school_id", schoolId).eq("level_code", level)
       ]);
       if (wordErr) throw wordErr; if (ownErr) throw ownErr; if (attemptErr) throw attemptErr; if (allErr) throw allErr;
       const ownMastered = new Set((ownResponses || []).filter((r: any) => r.is_correct).map((r: any) => r.word_id));
