@@ -81,7 +81,6 @@ Deno.serve(async (req) => {
 
     if (action === "level-detail") {
       const level = String(body.level || "");
-      const mode = body.mode === "practice" ? "practice" : "assessment";
       if (!LEVELS.includes(level)) return json({ error: "Unknown level." }, 400);
       const idx = LEVELS.indexOf(level);
       if (idx > 0 && !(await levelPassed(db, studentId, LEVELS[idx - 1]))) {
@@ -106,7 +105,7 @@ Deno.serve(async (req) => {
         const w: any = wordById.get(id);
         return w && t.total >= 10 ? { word: w.word, attempts: t.total, failRate: Math.round(t.failed / t.total * 100) } : null;
       }).filter((w: any) => w && w.failRate > 50).sort((a: any, b: any) => b.failRate - a.failRate);
-      const bestScore = (attempts || []).reduce((best: number, a: any) => Math.max(best, Number(a.score_percent) || 0), 0);
+      const bestScore = (attempts || []).filter((a: any) => a.attempt_type === "assessment").reduce((best: number, a: any) => Math.max(best, Number(a.score_percent) || 0), 0);
       return json({
         level, totalWords: (words || []).length, mastered: ownMastered.size,
         passed: (attempts || []).some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95),
@@ -118,6 +117,7 @@ Deno.serve(async (req) => {
 
     if (action === "start") {
       const level = String(body.level || "");
+      const mode = body.mode === "practice" ? "practice" : "assessment";
       if (!LEVELS.includes(level)) return json({ error: "Unknown level." }, 400);
       const idx = LEVELS.indexOf(level);
       if (idx > 0 && !(await levelPassed(db, studentId, LEVELS[idx - 1]))) return json({ error: "Pass the previous level to unlock this level." }, 403);
