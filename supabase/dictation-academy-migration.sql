@@ -19,6 +19,7 @@ create table if not exists public.dictation_attempts (
   student_id uuid not null references public.students(id) on delete cascade,
   school_id uuid not null references public.schools(id) on delete cascade,
   level_code text not null check (level_code in ('Pre-A1','A1','A1+','A2','A2+','B1','B1+','B2','B2+','C1','C1+','C2','C2+')),
+  attempt_type text not null default 'assessment' check (attempt_type in ('practice','assessment')),
   question_word_ids uuid[] not null,
   correct_count integer,
   total_questions integer not null default 25 check (total_questions = 25),
