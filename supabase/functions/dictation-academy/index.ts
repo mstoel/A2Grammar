@@ -27,7 +27,7 @@ async function getSession(req: Request, db: any) {
 
 async function levelPassed(db: any, studentId: string, level: string) {
   const { data, error } = await db.from("dictation_attempts").select("id")
-    .eq("student_id", studentId).eq("level_code", level).eq("status", "completed").gte("score_percent", 95).limit(1);
+    .eq("student_id", studentId).eq("level_code", level).eq("attempt_type", "assessment").eq("status", "completed").gte("score_percent", 95).limit(1);
   if (error) throw error;
   return !!data?.length;
 }
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (action === "dashboard") {
       const [{ data: words, error: wordErr }, { data: attempts, error: attemptErr }, { data: responses, error: responseErr }] = await Promise.all([
         db.from("dictation_words").select("id,level_code").eq("is_active", true),
-        db.from("dictation_attempts").select("level_code,score_percent,correct_count,total_questions,completed_at,status").eq("student_id", studentId),
+        db.from("dictation_attempts").select("level_code,attempt_type,score_percent,correct_count,total_questions,completed_at,status").eq("student_id", studentId),
         db.from("dictation_responses").select("level_code,word_id,is_correct").eq("student_id", studentId).eq("is_correct", true)
       ]);
       if (wordErr) throw wordErr; if (attemptErr) throw attemptErr; if (responseErr) throw responseErr;
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       let previousPassed = true;
       const levels = LEVELS.map((level) => {
         const levelAttempts = completed.filter((a: any) => a.level_code === level);
-        const passed = levelAttempts.some((a: any) => Number(a.score_percent) >= 95);
+        const passed = levelAttempts.some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95);
         const result = {
           level,
           unlocked: previousPassed,
@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
 
     if (action === "level-detail") {
       const level = String(body.level || "");
+      const mode = body.mode === "practice" ? "practice" : "assessment";
       if (!LEVELS.includes(level)) return json({ error: "Unknown level." }, 400);
       const idx = LEVELS.indexOf(level);
       if (idx > 0 && !(await levelPassed(db, studentId, LEVELS[idx - 1]))) {
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
       const [{ data: words, error: wordErr }, { data: ownResponses, error: ownErr }, { data: attempts, error: attemptErr }, { data: allResponses, error: allErr }] = await Promise.all([
         db.from("dictation_words").select("id,word,sentence").eq("level_code", level).eq("is_active", true).order("word"),
         db.from("dictation_responses").select("word_id,is_correct,created_at").eq("student_id", studentId).eq("level_code", level),
-        db.from("dictation_attempts").select("score_percent,correct_count,total_questions,completed_at").eq("student_id", studentId).eq("level_code", level).eq("status", "completed").order("completed_at", { ascending: false }),
+        db.from("dictation_attempts").select("score_percent,correct_count,total_questions,completed_at,attempt_type").eq("student_id", studentId).eq("level_code", level).eq("status", "completed").order("completed_at", { ascending: false }),
         db.from("dictation_responses").select("word_id,is_correct").eq("school_id", schoolId).eq("level_code", level)
       ]);
       if (wordErr) throw wordErr; if (ownErr) throw ownErr; if (attemptErr) throw attemptErr; if (allErr) throw allErr;
@@ -108,7 +109,7 @@ Deno.serve(async (req) => {
       const bestScore = (attempts || []).reduce((best: number, a: any) => Math.max(best, Number(a.score_percent) || 0), 0);
       return json({
         level, totalWords: (words || []).length, mastered: ownMastered.size,
-        passed: (attempts || []).some((a: any) => Number(a.score_percent) >= 95),
+        passed: (attempts || []).some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95),
         attempts: attempts || [], bestScore,
         difficultWords,
         words: (words || []).map((w: any) => ({ id: w.id, word: w.word, mastered: ownMastered.has(w.id) }))
@@ -126,17 +127,17 @@ Deno.serve(async (req) => {
       if (!bank || bank.length < 25) return json({ error: "This level needs at least 25 published words before a test can start." }, 409);
       const shuffled = [...bank].sort(() => Math.random() - 0.5).slice(0, 25);
       const { data: attempt, error: insertErr } = await db.from("dictation_attempts").insert({
-        student_id: studentId, school_id: schoolId, level_code: level, question_word_ids: shuffled.map((w: any) => w.id)
+        student_id: studentId, school_id: schoolId, level_code: level, attempt_type: mode, question_word_ids: shuffled.map((w: any) => w.id)
       }).select("id").single();
       if (insertErr) throw insertErr;
-      return json({ attemptId: attempt.id, level, questions: shuffled.map((w: any) => ({ id: w.id, word: w.word, sentence: w.sentence })) });
+      return json({ attemptId: attempt.id, level, mode, questions: shuffled.map((w: any) => ({ id: w.id, word: w.word, sentence: w.sentence })) });
     }
 
     if (action === "submit") {
       const attemptId = String(body.attemptId || "");
       const answers = body.answers;
       if (!attemptId || !answers || typeof answers !== "object" || Array.isArray(answers)) return json({ error: "Missing answers." }, 400);
-      const { data: attempt, error: attemptErr } = await db.from("dictation_attempts").select("id,level_code,question_word_ids,status")
+      const { data: attempt, error: attemptErr } = await db.from("dictation_attempts").select("id,level_code,attempt_type,question_word_ids,status")
         .eq("id", attemptId).eq("student_id", studentId).eq("school_id", schoolId).maybeSingle();
       if (attemptErr) throw attemptErr;
       if (!attempt || attempt.status !== "in_progress" || !Array.isArray(attempt.question_word_ids) || attempt.question_word_ids.length !== 25) {
@@ -161,12 +162,12 @@ Deno.serve(async (req) => {
         correct_count: correct, score_percent: score, status: "completed", completed_at: new Date().toISOString()
       }).eq("id", attemptId).eq("student_id", studentId);
       if (updateErr) throw updateErr;
-      const passed = score >= 95;
+      const passed = attempt.attempt_type === "assessment" && score >= 95;
       const { data: allCorrect, error: masteredErr } = await db.from("dictation_responses").select("word_id")
         .eq("student_id", studentId).eq("level_code", attempt.level_code).eq("is_correct", true);
       if (masteredErr) throw masteredErr;
       const mastered = new Set((allCorrect || []).map((r: any) => r.word_id)).size;
-      return json({ correct, total: 25, score, passed, mastered, totalWords: 250 });
+      return json({ correct, total: 25, score, passed, mode: attempt.attempt_type, mastered, totalWords: 250 });
     }
 
     return json({ error: "Unknown action." }, 400);
