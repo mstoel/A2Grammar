@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
     </div>
     <div class="meter"><span id="detailMeter" style="width:0%"></span></div>
     <div class="level-meta"><span id="masteredLabel">0 mastered</span><span id="remainingLabel">250 remaining</span></div>
-    <div class="actions"><button id="startBtn">Start 25-word dictation</button><button id="backBtn" class="secondary">Back to all levels</button></div>
+    <div class="actions"><button id="practiceBtn" class="secondary">Practise this level · unlimited replays</button><button id="startBtn">Final assessment · 2 replays</button><button id="backBtn" class="ghost">Back to all levels</button></div>
     <div class="notice warn hidden" id="bankNotice"></div>
     <div class="section-title"><h3>Difficult words</h3><small>More than 50% incorrect · at least 10 attempts</small></div>
     <div id="hardWords"><div class="no-data">Loading difficult words…</div></div>
@@ -105,26 +105,26 @@ function speakCurrent(){
   const second=new SpeechSynthesisUtterance(q.sentence||q.word);second.lang="en-US";second.rate=.86;
   first.onend=()=>speechSynthesis.speak(second);speechSynthesis.speak(first);
 }
-async function startTest(){
-  try{const d=await api({action:"start",level:selectedLevel});test=d;questionIndex=0;answers={};replays=2;$("testArea").classList.remove("hidden");showQuestion()}catch(e){setStatus(e.message,"bad")}
+async function startTest(mode="assessment"){
+  try{const d=await api({action:"start",level:selectedLevel,mode});test=d;questionIndex=0;answers={};replays=2;$("testArea").classList.remove("hidden");showQuestion()}catch(e){setStatus(e.message,"bad")}
 }
 function showQuestion(){
   const q=test.questions[questionIndex];$("testLevel").textContent=test.level+" Dictation";$("questionCount").textContent="Question "+(questionIndex+1)+" of 25";$("testBar").style.width=((questionIndex+1)/25*100)+"%";$("replayCount").textContent=replays+" replays available";
-  $("typedAnswer").value=answers[q.id]||"";$("typedAnswer").focus();$("prevQuestion").disabled=questionIndex===0;$("nextQuestion").textContent=questionIndex===24?"Submit dictation":"Next word →";$("testMessage").textContent="";replays=2;$("replayCount").textContent="2 replays available";
+  $("typedAnswer").value=answers[q.id]||"";$("typedAnswer").focus();$("prevQuestion").disabled=questionIndex===0;$("nextQuestion").textContent=questionIndex===24?"Submit dictation":"Next word →";$("testMessage").textContent="";replays=2;$("replayCount").textContent=test.mode==="practice"?"Unlimited replays":"2 replays available";
 }
-$("playAudio").onclick=()=>{if(replays<=0){$("testMessage").textContent="No replays left for this word.";return}replays--; $("replayCount").textContent=replays+" replays available";speakCurrent()};
+$("playAudio").onclick=()=>{if(test.mode!=="practice"&&replays<=0){$("testMessage").textContent="No replays left for this word.";return}if(test.mode!=="practice"){replays--; $("replayCount").textContent=replays+" replays available"}speakCurrent()};
 $("typedAnswer").addEventListener("input",e=>{if(test)answers[test.questions[questionIndex].id]=e.target.value});
 $("prevQuestion").onclick=()=>{if(questionIndex>0){questionIndex--;showQuestion()}};
 $("nextQuestion").onclick=async()=>{
   if(questionIndex<24){questionIndex++;showQuestion();return}
   $("nextQuestion").disabled=true;
-  try{const d=await api({action:"submit",attemptId:test.attemptId,answers});speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");test=null;await openLevel(selectedLevel);setStatus("Dictation complete: "+d.correct+"/25 ("+d.score+"%). "+(d.passed?"You passed and the next level is unlocked!":"You need 24 correct answers to pass. Keep practising!"),d.passed?"good":"");}
+  try{const d=await api({action:"submit",attemptId:test.attemptId,answers});speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");test=null;await openLevel(selectedLevel);setStatus(d.mode==="practice"?"Practice complete: "+d.correct+"/25 ("+d.score+"%). Your correctly spelled words have been added to your mastery tracker.":"Final assessment: "+d.correct+"/25 ("+d.score+"%). "+(d.passed?"You passed and the next level is unlocked!":"You need 24 correct answers to pass. Keep practising!"),d.passed?"good":"");}
   catch(e){$("testMessage").textContent=e.message}
   finally{$("nextQuestion").disabled=false}
 };
 $("closeTest").onclick=()=>{speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");test=null;setStatus("Test exited. This unfinished attempt was not scored.")}
-document.addEventListener("visibilitychange",()=>{if(test&&document.hidden){tabSwitches++;$("testMessage").textContent="Leaving the assessment was detected. Your teacher may review this event."; }});
-$("startBtn").onclick=startTest;
+document.addEventListener("visibilitychange",()=>{if(test&&document.hidden){tabSwitches++;$("testMessage").textContent="Leaving the assessment was detected. Please stay on this page while testing."; }});
+$("startBtn").onclick=()=>startTest("assessment");$("practiceBtn").onclick=()=>startTest("practice");
 (async()=>{if(!token){setStatus("Please sign in through the EduAssess student portal first.","bad");return}try{await loadDashboard()}catch(e){setStatus(e.message,"bad")}})();
 </script>
 </body></html>
