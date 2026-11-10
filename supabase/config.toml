@@ -1,2 +1,5 @@
 [functions.student-assessment]
 verify_jwt = false
+
+[functions.dictation-academy]
+verify_jwt = false
