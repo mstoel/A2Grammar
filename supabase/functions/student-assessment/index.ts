@@ -235,6 +235,37 @@ Deno.serve(async (req) => {
     }
 
 
+    if (action === "c1-list-progress") {
+      const { data, error } = await db.from("c1_lesson_progress").select("lesson_id,score_percent,completed,completed_at,updated_at").eq("student_id", session.student_id).eq("school_id", session.school_id).order("lesson_id");
+      if (error) throw error;
+      return json({ ok: true, progress: data || [], completed: (data || []).filter((x:any) => x.completed).map((x:any) => x.lesson_id) });
+    }
+
+    if (action === "c1-save-progress") {
+      const lessonId = String(body.lessonId || "").trim();
+      const score = Number(body.score), correct = Number(body.correct), total = Number(body.total);
+      const allowedLessons = ["c1-inversion-01"];
+      if (!allowedLessons.includes(lessonId)) return json({ error: "This C1 lesson is not available for submission." }, 400);
+      if (!Number.isFinite(score) || score < 0 || score > 100 || !Number.isInteger(correct) || !Number.isInteger(total) || total < 1 || total > 30 || correct < 0 || correct > total) return json({ error: "The lesson score is invalid." }, 400);
+      const answers = Array.isArray(body.answers) ? body.answers.slice(0,30).map((x:any) => x === null ? null : Math.max(0, Math.min(10, Number(x)))) : [];
+      const rawWritten = body.written && typeof body.written === "object" && !Array.isArray(body.written) ? body.written : {};
+      const written: Record<string,string> = {};
+      for (const key of ["upgrade1","upgrade2","upgrade3","combine","original"]) {
+        const value = String(rawWritten[key] || "").trim();
+        if (!value || value.length > 5000) return json({ error: "Please complete all five writing tasks. Each response must be under 5,000 characters." }, 400);
+        written[key] = value;
+      }
+      if (answers.length !== total) return json({ error: "The answer record is incomplete." }, 400);
+      const now = new Date().toISOString();
+      const { data, error } = await db.from("c1_lesson_progress").upsert({
+        school_id: session.school_id, student_id: session.student_id, lesson_id: lessonId,
+        score_percent: score, correct_count: correct, total_questions: total, answers,
+        written_responses: written, completed: true, completed_at: now, updated_at: now
+      }, { onConflict: "student_id,lesson_id" }).select("lesson_id,score_percent,correct_count,total_questions,completed,completed_at").single();
+      if (error) throw error;
+      return json({ ok: true, saved: true, result: data });
+    }
+
     if (action === "writing-list") {
       const { data: assignments, error } = await db.from("writing_assignments")
         .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status,is_open_test,class_id,classes(name)")
