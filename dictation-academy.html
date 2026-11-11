@@ -77,7 +77,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 </div>
 <script>
 const CONFIG={url:"https://wappdiduuulrrnaczaxl.supabase.co",key:"sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2"};
-const ACCENT_KEY="dictation_accent_v1",ACCENTS={"en-GB":"British English","en-US":"American English","en-AU":"Australian English"};
+const ACCENT_KEY="dictation_accent_v1",VOICE_KEY="dictation_voice_uri_v1",ACCENTS={"en-GB":"British English","en-US":"American English","en-AU":"Australian English"};
 const TOKEN="sap_student_session_v1",LEVELS=["Pre-A1","A1","A1+","A2","A2+","B1","B1+","B2","B2+","C1","C1+","C2","C2+"];
 const $=id=>document.getElementById(id);let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||"",levels=[],selectedLevel=null,detail=null,test=null,questionIndex=0,answers={},replays=2,playsThisQuestion=0,tabSwitches=0;
 function setStatus(message,kind=""){const el=$("status");el.textContent=message;el.className="status "+kind}
@@ -116,18 +116,49 @@ function renderDetail(){
 }
 $("refreshBtn").onclick=()=>loadDashboard().catch(e=>setStatus(e.message,"bad"));
 const accentSelect=$("accentSelect");
-accentSelect.value=localStorage.getItem(ACCENT_KEY)||"en-GB";
-accentSelect.onchange=()=>{localStorage.setItem(ACCENT_KEY,accentSelect.value);if(window.speechSynthesis)window.speechSynthesis.cancel();const accent=ACCENTS[accentSelect.value];const voices=window.speechSynthesis?.getVoices?.()||[];const available=voices.some(v=>v.lang.toLowerCase()===accentSelect.value.toLowerCase()||v.lang.toLowerCase().startsWith(accentSelect.value.toLowerCase()+"-"));$("accentNote").textContent=available?accent+" voice selected.":accent+" selected. Your browser may use its default English voice if this accent is not installed.";};
+let availableVoices=[];
+function populateDeviceVoices(){
+  if(!("speechSynthesis" in window))return;
+  const all=window.speechSynthesis.getVoices()||[];
+  availableVoices=all.filter(v=>/^en([_-]|$)/i.test(v.lang||""));
+  const savedUri=localStorage.getItem(VOICE_KEY);
+  accentSelect.innerHTML="";
+  if(!availableVoices.length){
+    const option=document.createElement("option");option.value="";option.textContent="Browser default voice";accentSelect.appendChild(option);
+    $("accentNote").textContent="No English voices were listed by this browser. The device default voice will be used.";
+    return;
+  }
+  availableVoices.forEach(voice=>{
+    const option=document.createElement("option");option.value=voice.voiceURI;
+    option.textContent=voice.name+" ("+voice.lang+")"+(voice.default?" · device default":"");
+    accentSelect.appendChild(option);
+  });
+  const chosen=availableVoices.find(v=>v.voiceURI===savedUri)
+    ||availableVoices.find(v=>/^en-GB$/i.test(v.lang))
+    ||availableVoices.find(v=>/^en-GB/i.test(v.lang))
+    ||availableVoices.find(v=>v.default)||availableVoices[0];
+  if(chosen){accentSelect.value=chosen.voiceURI;localStorage.setItem(VOICE_KEY,chosen.voiceURI);localStorage.setItem(ACCENT_KEY,chosen.lang);}
+  $("accentNote").textContent="Available English voices on this device: "+availableVoices.length+". British English is selected by default when available.";
+}
+populateDeviceVoices();
+if("speechSynthesis" in window)window.speechSynthesis.addEventListener("voiceschanged",populateDeviceVoices);
+accentSelect.onchange=()=>{
+  const chosen=availableVoices.find(v=>v.voiceURI===accentSelect.value);
+  if(!chosen)return;
+  localStorage.setItem(VOICE_KEY,chosen.voiceURI);localStorage.setItem(ACCENT_KEY,chosen.lang);
+  window.speechSynthesis?.cancel?.();
+  $("accentNote").textContent="Selected voice: "+chosen.name+" ("+chosen.lang+").";
+};
 $("backBtn").onclick=()=>{$("detailPanel").classList.add("hidden");selectedLevel=null;renderLevels();window.scrollTo({top:0,behavior:"smooth"})};
 function speakCurrent(){
   if(!test)return;const q=test.questions[questionIndex];if(!q)return;
   if(!("speechSynthesis" in window)){ $("testMessage").textContent="Audio playback is not supported in this browser.";return}
   const synth=window.speechSynthesis;synth.cancel();
-  const accent=$("accentSelect").value||localStorage.getItem(ACCENT_KEY)||"en-GB";
   const voices=synth.getVoices();
-  const voice=voices.find(v=>v.lang.toLowerCase()===accent.toLowerCase())||voices.find(v=>v.lang.toLowerCase().startsWith(accent.toLowerCase()+"-"));
-  const accentName=ACCENTS[accent]||"English";
-  $("accentNote").textContent=voice?accentName+" voice: "+voice.name:"Selected accent may not be installed on this device. The browser may use its default English voice.";
+  if(!availableVoices.length)populateDeviceVoices();
+  const voice=voices.find(v=>v.voiceURI===accentSelect.value)||availableVoices.find(v=>v.voiceURI===accentSelect.value);
+  const accent=voice?.lang||localStorage.getItem(ACCENT_KEY)||"en-GB";
+  $("accentNote").textContent=voice?"Using "+voice.name+" ("+voice.lang+").":"Using the browser's default voice; no selectable English voice was detected.";
 
   const parts=[q.word,q.word,q.sentence||q.word,"Write down",q.word];let index=0;
   const speakNext=()=>{
