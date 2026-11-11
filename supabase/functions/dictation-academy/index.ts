@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
         return json({ error: "Pass the previous level to unlock this level." }, 403);
       }
       const [{ data: words, error: wordErr }, { data: ownResponses, error: ownErr }, { data: attempts, error: attemptErr }, { data: allResponses, error: allErr }] = await Promise.all([
-        db.from("dictation_words").select("id,word,sentence").eq("level_code", level).eq("is_active", true).order("word"),
+        db.from("dictation_words").select("id,word,sentence,thai_translation").eq("level_code", level).eq("is_active", true).order("word"),
         db.from("dictation_responses").select("word_id,is_correct,typed_answer,created_at").eq("student_id", studentId).eq("level_code", level),
         db.from("dictation_attempts").select("score_percent,correct_count,total_questions,completed_at,attempt_type").eq("student_id", studentId).eq("level_code", level).eq("status", "completed").order("completed_at", { ascending: false }),
         db.from("dictation_responses").select("word_id,is_correct").eq("school_id", schoolId).eq("level_code", level)
@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
         student_id: studentId, school_id: schoolId, level_code: level, attempt_type: mode, question_word_ids: shuffled.map((w: any) => w.id)
       }).select("id").single();
       if (insertErr) throw insertErr;
-      return json({ attemptId: attempt.id, level, mode, questions: shuffled.map((w: any) => ({ id: w.id, word: w.word, sentence: w.sentence })) });
+      return json({ attemptId: attempt.id, level, mode, questions: shuffled.map((w: any) => ({ id: w.id, word: w.word, sentence: w.sentence, thai_translation: w.thai_translation || "" })) });
     }
 
     if (action === "submit") {
