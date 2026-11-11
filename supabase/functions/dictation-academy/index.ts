@@ -8,7 +8,40 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const LEVELS = ["Pre-A1","A1","A1+","A2","A2+","B1","B1+","B2","B2+","C1","C1+","C2","C2+"];
-const normalize = (value: unknown) => String(value ?? "").trim().normalize("NFC").toLocaleLowerCase("en");
+// Treat common US and UK spelling variants as equivalent in dictation answers.
+const SPELLING_EQUIVALENTS: Record<string, string> = Object.fromEntries(
+  [
+    ["color", "colour"], ["colors", "colours"], ["colored", "coloured"], ["coloring", "colouring"],
+    ["favorite", "favourite"], ["favorites", "favourites"],
+    ["neighbor", "neighbour"], ["neighbors", "neighbours"], ["neighboring", "neighbouring"], ["neighborhood", "neighbourhood"], ["neighborhoods", "neighbourhoods"],
+    ["harbor", "harbour"], ["harbors", "harbours"],
+    ["center", "centre"], ["centers", "centres"], ["centered", "centred"], ["centering", "centring"],
+    ["theater", "theatre"], ["theaters", "theatres"],
+    ["gray", "grey"],
+    ["traveling", "travelling"], ["traveled", "travelled"], ["traveler", "traveller"], ["travelers", "travellers"],
+    ["canceling", "cancelling"], ["canceled", "cancelled"], ["cancellation", "cancellation"],
+    ["organize", "organise"], ["organizes", "organises"], ["organized", "organised"], ["organizing", "organising"], ["organization", "organisation"], ["organizations", "organisations"],
+    ["recognize", "recognise"], ["recognizes", "recognises"], ["recognized", "recognised"], ["recognizing", "recognising"],
+    ["realize", "realise"], ["realizes", "realises"], ["realized", "realised"], ["realizing", "realising"],
+    ["analyze", "analyse"], ["analyzes", "analyses"], ["analyzed", "analysed"], ["analyzing", "analysing"],
+    ["behavior", "behaviour"], ["behaviors", "behaviours"],
+    ["honor", "honour"], ["honors", "honours"], ["honored", "honoured"], ["honoring", "honouring"],
+    ["humor", "humour"], ["labors", "labours"], ["labor", "labour"],
+    ["favor", "favour"], ["favors", "favours"], ["favored", "favoured"], ["favoring", "favouring"],
+    ["flavor", "flavour"], ["flavors", "flavours"], ["flavored", "flavoured"],
+    ["rumor", "rumour"], ["rumors", "rumours"],
+    ["defense", "defence"], ["defenses", "defences"], ["offense", "offence"], ["offenses", "offences"],
+    ["jewelry", "jewellery"], ["mold", "mould"], ["molds", "moulds"], ["molded", "moulded"], ["molding", "moulding"],
+    ["fulfill", "fulfil"], ["fulfilled", "fulfilled"], ["fulfillment", "fulfilment"],
+    ["enrollment", "enrolment"], ["enroll", "enrol"], ["enrolled", "enrolled"], ["enrolling", "enrolling"],
+    ["aging", "ageing"], ["labeled", "labelled"], ["labeling", "labelling"],
+    ["modeled", "modelled"], ["modeling", "modelling"], ["jewelry", "jewellery"]
+  ].flatMap(([us, uk]) => [[us, uk], [uk, uk]])
+);
+const normalize = (value: unknown) => {
+  const answer = String(value ?? "").trim().normalize("NFC").toLocaleLowerCase("en");
+  return SPELLING_EQUIVALENTS[answer] || answer;
+};
 
 async function getSession(req: Request, db: any) {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
