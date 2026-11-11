@@ -139,7 +139,20 @@ function speakCurrent(){
   speakNext();
 }
 async function startTest(mode="assessment"){
-  try{const d=await api({action:"start",level:selectedLevel,mode});test=d;questionIndex=0;answers={};replays=2;$("testArea").classList.remove("hidden");showQuestion()}catch(e){setStatus(e.message,"bad")}
+  const button=mode==="practice"?$("practiceBtn"):$("startBtn");
+  if(!selectedLevel){setStatus("Please select a vocabulary level first.","bad");return}
+  if(button.disabled)return;
+  const original=button.textContent;
+  button.disabled=true;button.textContent="Starting test…";
+  setStatus("Preparing your 25-question dictation…");
+  try{
+    const d=await api({action:"start",level:selectedLevel,mode});
+    if(!d.questions||d.questions.length!==25)throw Error("The test could not be prepared. Please refresh and try again.");
+    test=d;questionIndex=0;answers={};replays=2;
+    $("testArea").classList.remove("hidden");showQuestion();
+    setStatus("Your "+(mode==="practice"?"practice":"final assessment")+" is ready.","good");
+  }catch(e){setStatus(e.message||"The test could not be started.","bad")}
+  finally{button.disabled=false;button.textContent=original}
 }
 function showQuestion(){
   const q=test.questions[questionIndex];$("testLevel").textContent=test.level+" · "+(test.mode==="practice"?"Practice":"Final assessment");$("questionCount").textContent="Question "+(questionIndex+1)+" of 25";$("testBar").style.width=((questionIndex+1)/25*100)+"%";$("replayCount").textContent=replays+" replays available";
@@ -158,7 +171,7 @@ $("nextQuestion").onclick=async()=>{
 };
 $("closeTest").onclick=()=>{speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");test=null;setStatus("Test exited. This unfinished attempt was not scored.")}
 document.addEventListener("visibilitychange",()=>{if(test&&document.hidden){tabSwitches++;$("testMessage").textContent="Leaving the assessment was detected. Please stay on this page while testing."; }});
-$("startBtn").onclick=()=>startTest("assessment");$("practiceBtn").onclick=()=>startTest("practice");
+$("startBtn").addEventListener("click",()=>startTest("assessment"));$("practiceBtn").addEventListener("click",()=>startTest("practice"));
 (async()=>{if(!token){setStatus("Please sign in through the EduAssess student portal first.","bad");return}try{await loadDashboard()}catch(e){setStatus(e.message,"bad")}})();
 </script>
 </body></html>
