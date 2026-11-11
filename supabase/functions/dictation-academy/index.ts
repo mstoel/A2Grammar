@@ -11,7 +11,7 @@ const LEVELS = ["Pre-A1","A1","A1+","A2","A2+","B1","B1+","B2","B2+","C1","C1+",
 const normalize = (value: unknown) => String(value ?? "").trim().normalize("NFC").toLocaleLowerCase("en");
 
 async function getSession(req: Request, db: any) {
-  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
   if (token.length < 40) throw new Error("Please sign in again.");
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
   const hash = Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
