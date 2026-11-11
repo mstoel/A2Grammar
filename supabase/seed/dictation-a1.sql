@@ -92,7 +92,7 @@ values
   ('A1', 'orange juice', 'I drink orange juice at breakfast.', true),
   ('A1', 'potato', 'The potato is hot.', true),
   ('A1', 'pumpkin', 'We make soup with pumpkin.', true),
-  ('A1', 'salt', 'Please add a little salt.', true),
+  ('A1', 'salt', 'I put salt on my food.', true),
   ('A1', 'sugar', 'I do not put sugar in my tea.', true),
   ('A1', 'tea', 'My grandmother drinks tea every morning.', true),
   ('A1', 'watermelon', 'We eat watermelon after lunch.', true),
