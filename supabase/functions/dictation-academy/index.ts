@@ -83,20 +83,28 @@ Deno.serve(async (req) => {
     const schoolId = session.school_id;
 
     if (action === "dashboard") {
-      const [{ data: words, error: wordErr }, { data: attempts, error: attemptErr }, { data: responses, error: responseErr }] = await Promise.all([
-        db.from("dictation_words").select("id,level_code").eq("is_active", true),
-        db.from("dictation_attempts").select("level_code,attempt_type,score_percent,correct_count,total_questions,completed_at,status").eq("student_id", studentId),
-        db.from("dictation_responses").select("level_code,word_id,is_correct").eq("student_id", studentId).eq("is_correct", true)
+      // Count words per level without downloading the full vocabulary bank.
+      const [countResults, attemptsResult, responseResult] = await Promise.all([
+        Promise.all(LEVELS.map((level) =>
+          db.from("dictation_words").select("id", { count: "exact", head: true })
+            .eq("is_active", true).eq("level_code", level)
+        )),
+        db.from("dictation_attempts").select("level_code,attempt_type,score_percent,correct_count,total_questions,completed_at,status")
+          .eq("student_id", studentId),
+        db.from("dictation_responses").select("level_code,word_id")
+          .eq("student_id", studentId).eq("is_correct", true)
       ]);
-      if (wordErr) throw wordErr; if (attemptErr) throw attemptErr; if (responseErr) throw responseErr;
+      for (const result of countResults) if (result.error) throw result.error;
+      if (attemptsResult.error) throw attemptsResult.error;
+      if (responseResult.error) throw responseResult.error;
       const mastered = new Map<string, Set<string>>();
-      for (const row of responses || []) {
+      for (const row of responseResult.data || []) {
         if (!mastered.has(row.level_code)) mastered.set(row.level_code, new Set());
         mastered.get(row.level_code)!.add(row.word_id);
       }
-      const completed = (attempts || []).filter((a: any) => a.status === "completed");
+      const completed = (attemptsResult.data || []).filter((a: any) => a.status === "completed");
       let previousPassed = true;
-      const levels = LEVELS.map((level) => {
+      const levels = LEVELS.map((level, index) => {
         const levelAttempts = completed.filter((a: any) => a.level_code === level);
         const passed = levelAttempts.some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95);
         const result = {
@@ -106,7 +114,7 @@ Deno.serve(async (req) => {
           attempts: levelAttempts.length,
           bestScore: levelAttempts.length ? Math.max(...levelAttempts.map((a: any) => Number(a.score_percent) || 0)) : null,
           mastered: mastered.get(level)?.size || 0,
-          totalWords: (words || []).filter((w: any) => w.level_code === level).length,
+          totalWords: countResults[index].count || 0,
           lastAttempt: levelAttempts.map((a: any) => a.completed_at).filter(Boolean).sort().at(-1) || null
         };
         previousPassed = previousPassed && passed;
