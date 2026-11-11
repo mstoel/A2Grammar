@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       }
       const [{ data: words, error: wordErr }, { data: ownResponses, error: ownErr }, { data: attempts, error: attemptErr }, { data: allResponses, error: allErr }] = await Promise.all([
         db.from("dictation_words").select("id,word,sentence").eq("level_code", level).eq("is_active", true).order("word"),
-        db.from("dictation_responses").select("word_id,is_correct,created_at").eq("student_id", studentId).eq("level_code", level),
+        db.from("dictation_responses").select("word_id,is_correct,typed_answer,created_at").eq("student_id", studentId).eq("level_code", level),
         db.from("dictation_attempts").select("score_percent,correct_count,total_questions,completed_at,attempt_type").eq("student_id", studentId).eq("level_code", level).eq("status", "completed").order("completed_at", { ascending: false }),
         db.from("dictation_responses").select("word_id,is_correct").eq("school_id", schoolId).eq("level_code", level)
       ]);
@@ -111,7 +111,11 @@ Deno.serve(async (req) => {
         passed: (attempts || []).some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95),
         attempts: attempts || [], bestScore,
         difficultWords,
-        words: (words || []).map((w: any) => ({ id: w.id, word: w.word, mastered: ownMastered.has(w.id) }))
+        words: (words || []).map((w: any) => {
+          const history = (ownResponses || []).filter((r: any) => r.word_id === w.id).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          const latest = history[0];
+          return { id: w.id, word: w.word, mastered: ownMastered.has(w.id), attempted: history.length > 0, lastCorrect: latest ? !!latest.is_correct : null, lastAnswer: latest?.typed_answer || "", attempts: history.length };
+        })
       });
     }
 
