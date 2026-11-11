@@ -154,4 +154,4 @@ values
   ('B2','integral','Feedback is an integral part of the learning process.','สำคัญและเป็นส่วนหนึ่ง',true)
 on conflict (level_code, word) do update set
  sentence = case when public.dictation_words.sentence = '' then excluded.sentence else public.dictation_words.sentence end,
- thai_translation = case when public.dictation_words.thai_translation = '' then excluded.thai_translation else public.dictation_words.thai_translation end;
+ thai_translation = case when public.dictation_words.thai_translation = '' then excluded.thai_translation else public.dictation_words.thai_translation end
