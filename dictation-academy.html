@@ -68,6 +68,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
     </label>
     <p class="accent-note" id="accentNote">Choose the accent you want to hear. Your choice is saved on this device.</p>
     <button class="audio" id="playAudio">🔊 Play dictation</button>
+    <button class="thai-toggle" id="showThai" type="button">🇹🇭 Show Thai meaning</button>
+    <div class="thai-meaning hidden" id="thaiMeaning" aria-live="polite"></div>
     <input class="answer" id="typedAnswer" type="text" placeholder="Type the word here…" spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="off" inputmode="text">
     <div class="test-footer"><button class="ghost" id="prevQuestion" disabled>Previous</button><button id="nextQuestion">Next word →</button></div>
     <p id="testMessage" aria-live="polite"></p>
