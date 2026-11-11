@@ -266,8 +266,9 @@ async function loadAssignments(){
   const a=essays.find(x=>x.id===b.dataset.removeWriting);if(!a)return;
   if(!confirm('Remove "'+(a.title||'this writing essay')+'" from '+(a.classes?.name||'this class')+'? The writing task will remain in your library and existing student submissions will not be deleted.'))return;
   b.disabled=true;
-  const {error}=await sb.from('writing_assignments').update({class_id:null}).eq('id',a.id).eq('school_id',activeSchool.id).eq('class_id',a.class_id);
-  if(error){b.disabled=false;status('Could not remove writing assignment: '+error.message,'bad');return}
+  const {data:changed,error}=await sb.from('writing_assignments').update({class_id:null}).eq('id',a.id).eq('school_id',activeSchool.id).eq('class_id',a.class_id).select('id').maybeSingle();
+  if(error){b.disabled=false;status('Could not remove writing assignment: '+error.message+'. Check the writing_assignments UPDATE policy in Supabase.','bad');return}
+  if(!changed){b.disabled=false;status('No assignment was changed. Supabase did not return an updated row; the UPDATE permission may be missing. Run the writing-assessment policy SQL migration, then refresh.','bad');return}
   status('Writing assignment removed from the class. The task and existing submissions were kept.','good');await loadAssignments();
  });
 }
