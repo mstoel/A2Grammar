@@ -58,8 +58,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
     <div class="test-top"><span id="testLevel">A1 Dictation</span><button class="ghost" id="closeTest">Exit</button></div>
     <div class="test-progress"><span id="testBar" style="width:0%"></span></div>
     <div class="test-top"><span id="questionCount">Question 1 of 25</span><span id="replayCount">2 replays available</span></div>
-    <h2>Listen and type the word</h2><p>First listen to the word, then hear it used in a sentence. Type only the word you hear.</p>
-    <button class="audio" id="playAudio">🔊 Play word + sentence</button>
+    <h2>Listen and type the word</h2><p>You will hear the word twice, an example sentence, then “Write down” followed by the word. Type only the word you hear.</p>
+    <button class="audio" id="playAudio">🔊 Play dictation</button>
     <input class="answer" id="typedAnswer" type="text" placeholder="Type the word here…" spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="off" inputmode="text">
     <div class="test-footer"><button class="ghost" id="prevQuestion" disabled>Previous</button><button id="nextQuestion">Next word →</button></div>
     <p id="testMessage" aria-live="polite"></p>
@@ -68,7 +68,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 <script>
 const CONFIG={url:"https://wappdiduuulrrnaczaxl.supabase.co",key:"sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2"};
 const TOKEN="sap_student_session_v1",LEVELS=["Pre-A1","A1","A1+","A2","A2+","B1","B1+","B2","B2+","C1","C1+","C2","C2+"];
-const $=id=>document.getElementById(id);let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||"",levels=[],selectedLevel=null,detail=null,test=null,questionIndex=0,answers={},replays=2,tabSwitches=0;
+const $=id=>document.getElementById(id);let token=localStorage.getItem(TOKEN)||sessionStorage.getItem(TOKEN)||"",levels=[],selectedLevel=null,detail=null,test=null,questionIndex=0,answers={},replays=2,playsThisQuestion=0,tabSwitches=0;
 function setStatus(message,kind=""){const el=$("status");el.textContent=message;el.className="status "+kind}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function api(body){if(!token)throw Error("Your student session is missing. Please sign in again.");const res=await fetch(CONFIG.url+"/functions/v1/dictation-academy",{method:"POST",headers:{"Content-Type":"application/json","apikey":CONFIG.key,"Authorization":"Bearer "+token},body:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(!res.ok)throw Error(data.error||"The dictation service is not available yet.");return data}
@@ -100,19 +100,28 @@ $("refreshBtn").onclick=()=>loadDashboard().catch(e=>setStatus(e.message,"bad"))
 $("backBtn").onclick=()=>{$("detailPanel").classList.add("hidden");selectedLevel=null;renderLevels();window.scrollTo({top:0,behavior:"smooth"})};
 function speakCurrent(){
   if(!test)return;const q=test.questions[questionIndex];if(!q)return;
-  if(!("speechSynthesis" in window)){setStatus("Audio playback is not supported in this browser.","bad");return}
-  speechSynthesis.cancel();const first=new SpeechSynthesisUtterance(q.word);first.lang="en-US";first.rate=.86;
-  const second=new SpeechSynthesisUtterance(q.sentence||q.word);second.lang="en-US";second.rate=.86;
-  first.onend=()=>speechSynthesis.speak(second);speechSynthesis.speak(first);
+  if(!("speechSynthesis" in window)){ $("testMessage").textContent="Audio playback is not supported in this browser.";return}
+  const synth=window.speechSynthesis;synth.cancel();
+  const voices=synth.getVoices();const voice=voices.find(v=>/^en-GB/i.test(v.lang))||voices.find(v=>/^en/i.test(v.lang));
+  const parts=[q.word,q.word,q.sentence||q.word,"Write down",q.word];let index=0;
+  const speakNext=()=>{
+    if(index>=parts.length)return;
+    const part=index++;const utterance=new SpeechSynthesisUtterance(parts[part]);
+    utterance.lang=voice?.lang||"en-GB";if(voice)utterance.voice=voice;utterance.rate=part===2?.88:.82;utterance.pitch=1;
+    utterance.onend=()=>window.setTimeout(speakNext,part===1?450:part===2?650:350);
+    utterance.onerror=()=>{$("testMessage").textContent="Audio playback stopped. Press Play dictation to try again."};
+    synth.speak(utterance);
+  };
+  speakNext();
 }
 async function startTest(mode="assessment"){
   try{const d=await api({action:"start",level:selectedLevel,mode});test=d;questionIndex=0;answers={};replays=2;$("testArea").classList.remove("hidden");showQuestion()}catch(e){setStatus(e.message,"bad")}
 }
 function showQuestion(){
   const q=test.questions[questionIndex];$("testLevel").textContent=test.level+" · "+(test.mode==="practice"?"Practice":"Final assessment");$("questionCount").textContent="Question "+(questionIndex+1)+" of 25";$("testBar").style.width=((questionIndex+1)/25*100)+"%";$("replayCount").textContent=replays+" replays available";
-  $("typedAnswer").value=answers[q.id]||"";$("typedAnswer").focus();$("prevQuestion").disabled=questionIndex===0;$("nextQuestion").textContent=questionIndex===24?"Submit dictation":"Next word →";$("testMessage").textContent="";replays=2;$("replayCount").textContent=test.mode==="practice"?"Unlimited replays":"2 replays available";
+  $("typedAnswer").value=answers[q.id]||"";$("typedAnswer").focus();$("prevQuestion").disabled=questionIndex===0;$("nextQuestion").textContent=questionIndex===24?"Submit dictation":"Next word →";$("testMessage").textContent="";replays=2;playsThisQuestion=0;$("replayCount").textContent=test.mode==="practice"?"Unlimited replays":"2 replays available";
 }
-$("playAudio").onclick=()=>{if(test.mode!=="practice"&&replays<=0){$("testMessage").textContent="No replays left for this word.";return}if(test.mode!=="practice"){replays--; $("replayCount").textContent=replays+" replays available"}speakCurrent()};
+$("playAudio").onclick=()=>{if(!test)return;if(test.mode!=="practice"&&playsThisQuestion>=3){$("testMessage").textContent="No replays left for this word.";return}if(test.mode!=="practice"){if(playsThisQuestion>0)replays--;playsThisQuestion++;$("replayCount").textContent=replays+" replays available"}speakCurrent()};
 $("typedAnswer").addEventListener("input",e=>{if(test)answers[test.questions[questionIndex].id]=e.target.value});
 $("prevQuestion").onclick=()=>{if(questionIndex>0){questionIndex--;showQuestion()}};
 $("nextQuestion").onclick=async()=>{
