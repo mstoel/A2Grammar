@@ -106,7 +106,8 @@ function renderDetail(){
     const cls=w.attempted?(w.lastCorrect?"correct":"incorrect"):(w.mastered?"correct":"unmastered");
     const status=w.attempted?(w.lastCorrect?"Correct on latest attempt":"Needs practice"):(w.mastered?"Mastered":"Not attempted");
     const answer=w.attempted&&!w.lastCorrect?'<span class="typed">You wrote: '+esc(w.lastAnswer||"(blank)")+'</span>':"";
-    return '<span class="word-chip '+cls+'" title="'+status+'">'+(w.mastered?'✓ ':'')+esc(w.word)+answer+'</span>';
+    const count=w.mistakeCount?'<span class="typed">Mistakes: '+w.mistakeCount+' · Attempts: '+w.attempts+'</span>':(w.attempted?'<span class="typed">Mistakes: 0 · Attempts: '+w.attempts+'</span>':"");
+    return '<span class="word-chip '+cls+'" title="'+status+'">'+(w.mastered?'✓ ':'')+esc(w.word)+answer+count+'</span>';
   }).join("");
   $("wordGrid").insertAdjacentHTML("beforeend",'<div class="word-legend"><span><i style="background:#087c58"></i> Correct</span><span><i style="background:#b42318"></i> Latest answer incorrect</span><span><i style="background:#cbd5e1"></i> Not attempted</span></div>');
   const attempts=d.attempts||[];$("history").innerHTML=attempts.length?'<table><thead><tr><th>Date</th><th>Correct</th><th>Score</th><th>Result</th></tr></thead><tbody>'+attempts.map(a=>'<tr><td>'+new Date(a.completed_at).toLocaleDateString()+'</td><td>'+a.correct_count+'/25</td><td>'+Number(a.score_percent).toFixed(0)+'%</td><td>'+(Number(a.score_percent)>=95?'<span class="tag pass">Passed</span>':'<span class="tag">Try again</span>')+'</td></tr>').join("")+'</tbody></table>':'<div class="no-data">No completed attempts yet. Start your first dictation when you are ready.</div>';
