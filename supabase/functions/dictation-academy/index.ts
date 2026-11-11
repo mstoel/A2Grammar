@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
       const idx = LEVELS.indexOf(level);
       if (idx > 0 && !(await levelPassed(db, studentId, LEVELS[idx - 1]))) return json({ error: "Pass the previous level to unlock this level." }, 403);
       const [{ data: bank, error }, { data: history, error: historyErr }] = await Promise.all([
-        db.from("dictation_words").select("id,word,sentence").eq("level_code", level).eq("is_active", true),
+        db.from("dictation_words").select("id,word,sentence,thai_translation").eq("level_code", level).eq("is_active", true),
         db.from("dictation_responses").select("word_id,is_correct,created_at").eq("student_id", studentId).eq("level_code", level)
       ]);
       if (error) throw error;
