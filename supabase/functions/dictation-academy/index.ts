@@ -114,7 +114,8 @@ Deno.serve(async (req) => {
         words: (words || []).map((w: any) => {
           const history = (ownResponses || []).filter((r: any) => r.word_id === w.id).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           const latest = history[0];
-          return { id: w.id, word: w.word, mastered: ownMastered.has(w.id), attempted: history.length > 0, lastCorrect: latest ? !!latest.is_correct : null, lastAnswer: latest?.typed_answer || "", attempts: history.length };
+          const mistakeCount = history.filter((r: any) => !r.is_correct).length;
+          return { id: w.id, word: w.word, mastered: ownMastered.has(w.id), attempted: history.length > 0, lastCorrect: latest ? !!latest.is_correct : null, lastAnswer: latest?.typed_answer || "", attempts: history.length, mistakeCount };
         })
       });
     }
@@ -125,11 +126,44 @@ Deno.serve(async (req) => {
       if (!LEVELS.includes(level)) return json({ error: "Unknown level." }, 400);
       const idx = LEVELS.indexOf(level);
       if (idx > 0 && !(await levelPassed(db, studentId, LEVELS[idx - 1]))) return json({ error: "Pass the previous level to unlock this level." }, 403);
-      const { data: bank, error } = await db.from("dictation_words").select("id,word,sentence")
-        .eq("level_code", level).eq("is_active", true);
+      const [{ data: bank, error }, { data: history, error: historyErr }] = await Promise.all([
+        db.from("dictation_words").select("id,word,sentence").eq("level_code", level).eq("is_active", true),
+        db.from("dictation_responses").select("word_id,is_correct,created_at").eq("student_id", studentId).eq("level_code", level)
+      ]);
       if (error) throw error;
+      if (historyErr) throw historyErr;
       if (!bank || bank.length < 25) return json({ error: "This level needs at least 25 published words before a test can start." }, 409);
-      const shuffled = [...bank].sort(() => Math.random() - 0.5).slice(0, 25);
+      const shuffle = (items: any[]) => [...items].sort(() => Math.random() - 0.5);
+      const historyByWord = new Map<string, any[]>();
+      for (const response of history || []) {
+        const list = historyByWord.get(response.word_id) || [];
+        list.push(response);
+        historyByWord.set(response.word_id, list);
+      }
+      const newWords = bank.filter((w: any) => !historyByWord.has(w.id));
+      const mistakeWords = bank.filter((w: any) => (historyByWord.get(w.id) || []).some((r: any) => !r.is_correct))
+        .sort((a: any, b: any) => {
+          const mistakesA = (historyByWord.get(a.id) || []).filter((r: any) => !r.is_correct).length;
+          const mistakesB = (historyByWord.get(b.id) || []).filter((r: any) => !r.is_correct).length;
+          return mistakesB - mistakesA;
+        });
+      const passedWords = bank.filter((w: any) => {
+        const h = historyByWord.get(w.id) || [];
+        return h.some((r: any) => r.is_correct) && !h.some((r: any) => !r.is_correct);
+      });
+      const mistakePickCount = Math.min(5, mistakeWords.length);
+      const newTarget = 15 + (5 - mistakePickCount);
+      const newPick = shuffle(newWords).slice(0, Math.min(newTarget, newWords.length));
+      const passedTarget = 5 + Math.max(0, newTarget - newPick.length);
+      const passedPick = shuffle(passedWords).slice(0, Math.min(passedTarget, passedWords.length));
+      const selectedIds = new Set([...newPick, ...mistakeWords.slice(0, mistakePickCount), ...passedPick].map((w: any) => w.id));
+      const selected = [...newPick, ...mistakeWords.slice(0, mistakePickCount), ...passedPick];
+      if (selected.length < 25) {
+        const remaining = shuffle(bank.filter((w: any) => !selectedIds.has(w.id)));
+        selected.push(...remaining.slice(0, 25 - selected.length));
+      }
+      if (selected.length < 25) return json({ error: "Not enough unique words are available for this test." }, 409);
+      const shuffled = shuffle(selected).slice(0, 25);
       const { data: attempt, error: insertErr } = await db.from("dictation_attempts").insert({
         student_id: studentId, school_id: schoolId, level_code: level, attempt_type: mode, question_word_ids: shuffled.map((w: any) => w.id)
       }).select("id").single();
