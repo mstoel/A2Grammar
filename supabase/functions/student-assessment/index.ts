@@ -96,6 +96,30 @@ Deno.serve(async (req) => {
     }
     await db.from("student_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
 
+    if (action === "open-list") {
+      const { data: assessments, error: openErr } = await db.from("assessments")
+        .select("id,title,description,engine_key,is_active,is_open_test,open_test_school_id,opens_at,closes_at")
+        .eq("open_test_school_id", session.school_id).eq("is_open_test", true).eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (openErr) throw openErr;
+      const items = (assessments || []).filter((a: any) => notClosed(a)).map((a: any) => ({
+        id: a.id, title: a.title, description: a.description,
+        kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple-choice test" :
+          ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key) ? "Adaptive diagnostic" :
+          a.engine_key === "essay-rubric-v1" ? "Writing rubric" : "Assessment",
+        supported: a.engine_key === "mc-assessment-builder-v1" || ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key),
+        launchUrl: a.engine_key === "a2-adaptive-grammar-v1" ? "student-diagnostic.html" : a.engine_key === "b1-adaptive-grammar-v1" ? "student-b1-diagnostic.html" : null,
+        ...availability(a),
+      }));
+      const { data: writing, error: writingErr } = await db.from("writing_assignments")
+        .select("id,title,prompt,instructions,rubric_key,rubric,min_words,max_words,due_at,status,is_open_test")
+        .eq("school_id", session.school_id).eq("status", "published").eq("is_open_test", true)
+        .order("created_at", { ascending: false });
+      if (writingErr) throw writingErr;
+      const writingItems = (writing || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now());
+      return json({ assessments: items, writing: writingItems });
+    }
+
     // HSK diagnostic uses its own secure question bank and scoring path.
     if (action === "hsk-status") {
       const { data: progress, error } = await db.from("hsk_skill_progress").select("skill,level,best_score,passed,attempts,last_attempt_at").eq("student_id", session.student_id).order("level", { ascending: true });
@@ -571,19 +595,21 @@ Deno.serve(async (req) => {
     if (action === "start" || action === "submit") {
       const assessmentId = String(body.assessmentId ?? "");
       if (!assessmentId) return json({ error: "Missing assessment ID." }, 400);
+      const { data: assessment, error: assessErr } = await db.from("assessments")
+        .select("id,title,engine_key,assessment_data,result_storage_mode,is_published,is_active,is_open_test,open_test_school_id,opens_at,closes_at")
+        .eq("id", assessmentId).maybeSingle();
+      if (assessErr) throw assessErr;
+      if (!assessment || !assessment.is_active || !inWindow(assessment)) {
+        return json({ error: "This assessment is not currently available." }, 403);
+      }
       const { data: assignment, error: assignErr } = await db.from("assessment_assignments")
         .select("assessment_id,school_id,class_id,classes!inner(is_active)")
         .eq("assessment_id", assessmentId).eq("school_id", session.school_id)
         .eq("class_id", session.students.class_id).eq("classes.is_active", true).maybeSingle();
       if (assignErr) throw assignErr;
-      if (!assignment) return json({ error: "This assessment is not assigned to your class." }, 403);
-      const { data: assessment, error: assessErr } = await db.from("assessments")
-        .select("id,title,engine_key,assessment_data,result_storage_mode,is_published,is_active,opens_at,closes_at")
-        .eq("id", assessmentId).maybeSingle();
-      if (assessErr) throw assessErr;
-      if (!assessment || !assessment.is_active || !assessment.is_published || !inWindow(assessment)) {
-        return json({ error: "This assessment is not currently available." }, 403);
-      }
+      const isSchoolOpenTest = assessment.is_open_test && assessment.open_test_school_id === session.school_id;
+      if (!assignment && !isSchoolOpenTest) return json({ error: "This assessment is not assigned to your class or published as an Open Test." }, 403);
+      if (!assessment.is_published && !isSchoolOpenTest) return json({ error: "This assessment is not currently available." }, 403);
       if (assessment.engine_key !== "mc-assessment-builder-v1") {
         return json({ error: "This assessment type is listed, but online delivery for this type is not ready yet." }, 501);
       }
