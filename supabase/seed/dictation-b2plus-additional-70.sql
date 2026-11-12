@@ -28,7 +28,7 @@ values
   ('B2+','ascetic','The writer adopted an ascetic lifestyle with very few possessions.','สมถะ',true),
   ('B2+','assuage','The principal spoke to parents to assuage their concerns.','บรรเทาความกังวล',true),
   ('B2+','astute','The astute investor recognised the risks before making a decision.','ฉลาดและรอบคอบ',true),
-  ('B2+','audacious','The team proposed an audacious plan to transform the old building.','กล้าหาญและ大胆',true),
+  ('B2+','audacious','The team proposed an audacious plan to transform the old building.','กล้าหาญและกล้าเสี่ยง',true),
   ('B2+','auspices','The conference was held under the auspices of the national university.','การอุปถัมภ์หรือการสนับสนุน',true),
   ('B2+','avarice','The novel portrays how avarice can destroy personal relationships.','ความโลภ',true),
   ('B2+','bellicose','The minister''s bellicose remarks increased tensions between the countries.','ชอบทะเลาะหรือก้าวร้าว',true),
