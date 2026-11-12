@@ -48,7 +48,7 @@ values
   ('B1+','assistance','Please ask the office for assistance if you need help.','ความช่วยเหลือ',true),
   ('B1+','associate','Many people associate the festival with family gatherings.','เชื่อมโยง',true),
   ('B1+','association','The teachers'' association organised a training event.','สมาคม',true),
-  ('B1+','assurance','The company gave us assurance that the service would improve.','คำรับรอง',true),
+  ('B1+','assurance','The company gave us an assurance that the service would improve.','คำรับรอง',true),
   ('B1+','attach','Please attach a copy of your passport to the form.','แนบ',true),
   ('B1+','attachment','The email included an attachment with further details.','ไฟล์แนบ',true),
   ('B1+','attain','With regular practice, learners can attain a higher level.','บรรลุ',true),
