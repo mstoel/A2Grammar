@@ -2,7 +2,7 @@
 -- Checked against all previously prepared B1, B1+, B2 and B2+ vocabulary.
 insert into public.dictation_words (level_code, word, sentence, thai_translation, is_active)
 values
-  ('B2+','germane','The evidence was relevant and germane to the issue being considered.','เกี่ยวข้องโดยตรง',true),
+  ('B2+','germane','The evidence was germane to the issue being considered.','เกี่ยวข้องโดยตรง',true),
   ('B2+','gratuitous','The report contained gratuitous criticism that added nothing to the discussion.','ไม่จำเป็นและเกินกว่าเหตุ',true),
   ('B2+','gregarious','Her gregarious nature helped her build relationships across the organisation.','ชอบเข้าสังคม',true),
   ('B2+','guile','The novel follows a clever negotiator who relies on guile rather than force.','เล่ห์เหลี่ยม',true),
