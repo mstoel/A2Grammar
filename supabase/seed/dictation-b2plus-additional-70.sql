@@ -55,7 +55,7 @@ values
   ('B2+','contrite','The student was contrite and offered to repair the damaged equipment.','สำนึกผิด',true),
   ('B2+','conundrum','The researchers faced a conundrum with no obvious solution.','ปัญหาที่ยากจะแก้',true),
   ('B2+','convivial','The event created a convivial atmosphere for guests and staff.','รื่นเริงเป็นกันเอง',true),
-  ('B2+','copious','The report contains copious notes from the field observations.','มากมาย',true),
+  ('B2+','copious','Researchers took copious notes during their field observations.','มากมาย',true),
   ('B2+','cupidity','The story warns that cupidity can lead people to make harmful choices.','ความโลภ',true),
   ('B2+','debilitate','A prolonged illness can debilitate even a physically strong person.','ทำให้อ่อนแอ',true),
   ('B2+','decorum','Professional decorum is expected during formal meetings.','ความเหมาะสมตามกาลเทศะ',true),
