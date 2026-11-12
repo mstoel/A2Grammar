@@ -7,7 +7,7 @@ values
   ('B2','abruptly','The weather changed abruptly during the afternoon.','อย่างกะทันหัน',true),
   ('B2','absurd','It would be absurd to ignore such clear evidence.','ไร้เหตุผล',true),
   ('B2','abundance','The region has an abundance of fresh water.','ความอุดมสมบูรณ์',true),
-  ('B2','abundant','The island is abundant in rare plant species.','อุดมสมบูรณ์',true),
+  ('B2','abundant','Rare plant species are abundant on the island.','อุดมสมบูรณ์',true),
   ('B2','accessibility','The redesign will improve accessibility for wheelchair users.','การเข้าถึงได้',true),
   ('B2','acclaim','The novel received international acclaim.','การยกย่อง',true),
   ('B2','accord','The two sides reached an accord after long discussions.','ข้อตกลง',true),
