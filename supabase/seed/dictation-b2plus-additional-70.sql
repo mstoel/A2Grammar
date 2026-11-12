@@ -16,7 +16,7 @@ values
   ('B2+','alacrity','The staff responded with alacrity when extra help was needed.','ความกระตือรือร้นฉับไว',true),
   ('B2+','alleviation','The new measures brought some alleviation to families facing high costs.','การบรรเทา',true),
   ('B2+','anachronism','The use of a modern phone in the historical drama was an obvious anachronism.','สิ่งที่ผิดยุค',true),
-  ('B2+','anathema','For the environmental group, unnecessary waste is anathema.','สิ่งที่เกลียดชังอย่างยิ่ง',true),
+  ('B2+','anathema','Unnecessary waste is anathema to the environmental group.','สิ่งที่เกลียดชังอย่างยิ่ง',true),
   ('B2+','antithesis','Her calm approach was the antithesis of his impulsive behaviour.','สิ่งที่ตรงกันข้าม',true),
   ('B2+','apathetic','The audience seemed apathetic during the long presentation.','ไม่แยแส',true),
   ('B2+','apathy','Public apathy made it difficult to gain support for the campaign.','ความไม่แยแส',true),
