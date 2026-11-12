@@ -119,6 +119,9 @@ function insertEssayParagraph(){
   selection.removeAllRanges();
   selection.addRange(essayCaret.cloneRange());
  }
+ // One Enter creates the next paragraph; the second creates the
+ // empty paragraph between blocks, so the saved text contains a blank line.
+ document.execCommand('insertParagraph',false,null);
  document.execCommand('insertParagraph',false,null);
  syncToolbar();
  markEssayChanged();
