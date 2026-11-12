@@ -6,7 +6,7 @@
 <header><div><a href="student-login.html">← Student Dashboard</a> <span style="opacity:.7">·</span> <a href="student-portal.html">Open tests</a><h1>Writing Workspace</h1><p>Write directly here. Your draft saves automatically; submitting locks your final version.</p></div></header>
 <main><div id="status" class="status">Checking your student sign-in…</div>
 <section id="listCard" class="card hidden"><h2 id="welcome">Your writing assignments</h2><div id="assignments"></div></section>
-<section id="editorCard" class="card hidden"><div class="row"><div><h2 id="title"></h2><p class="muted" id="instructions"></p></div><span id="saveState" class="pill">Draft</span></div><h3>Writing prompt</h3><div id="prompt" class="prompt"></div><p class="muted" id="limits"></p><label for="essay"><strong>Your essay</strong></label><div class="editor-toolbar" role="toolbar" aria-label="Essay formatting"><button type="button" data-command="bold" title="Bold (Ctrl+B)" aria-label="Bold"><strong>B</strong></button><button type="button" data-command="italic" title="Italic (Ctrl+I)" aria-label="Italic"><em>I</em></button><button type="button" data-command="underline" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button><span class="tool-divider"></span><button type="button" data-command="undo" title="Undo" aria-label="Undo">↶</button><button type="button" data-command="redo" title="Redo" aria-label="Redo">↷</button><button type="button" id="clearFormat" title="Clear formatting">Clear formatting</button></div><div id="essay" class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Your essay" data-placeholder="Start writing here…"></div><p class="help">Formatting is allowed. Copying, pasting, cutting and dragging text into this editor are disabled during the assessment.</p><div id="integrityWarning" class="status bad hidden" role="alert" aria-live="assertive"><strong>⚠ Writing activity warning</strong><br>Your writing has been entered unusually quickly. Please write your answers yourself. Your teacher may review unusual writing activity.</div><div class="row" style="margin-top:10px"><span class="counter" id="wordCount">0 words</span><span class="muted" id="savedAt">Not saved yet</span></div><div class="actions"><button class="alt" id="back">Back to assignments</button><button id="save">Save draft now</button><button id="submit">Submit final essay</button></div><p id="editorStatus" class="status hidden" aria-live="polite"></p><p class="help">After submission, your essay is locked for assessment. Check it carefully first.</p><section id="reviewBox" class="review-box hidden"></section></section>
+<section id="editorCard" class="card hidden"><div class="row"><div><h2 id="title"></h2><p class="muted" id="instructions"></p></div><span id="saveState" class="pill">Draft</span></div><h3>Writing prompt</h3><div id="prompt" class="prompt"></div><p class="muted" id="limits"></p><label for="essay"><strong>Your essay</strong></label><div class="editor-toolbar" role="toolbar" aria-label="Essay formatting"><button type="button" data-command="bold" title="Bold (Ctrl+B)" aria-label="Bold"><strong>B</strong></button><button type="button" data-command="italic" title="Italic (Ctrl+I)" aria-label="Italic"><em>I</em></button><button type="button" data-command="underline" title="Underline (Ctrl+U)" aria-label="Underline"><u>U</u></button><span class="tool-divider"></span><button type="button" data-command="undo" title="Undo" aria-label="Undo">↶</button><button type="button" data-command="redo" title="Redo" aria-label="Redo">↷</button><button type="button" id="clearFormat" title="Clear formatting">Clear formatting</button><button type="button" id="newParagraph" title="Start a new paragraph (Ctrl+Enter)" aria-label="New paragraph">¶ New paragraph</button></div><div id="essay" class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Your essay" data-placeholder="Start writing here…"></div><p class="help">Formatting is allowed. Copying, pasting, cutting and dragging text into this editor are disabled during the assessment.</p><div id="integrityWarning" class="status bad hidden" role="alert" aria-live="assertive"><strong>⚠ Writing activity warning</strong><br>Your writing has been entered unusually quickly. Please write your answers yourself. Your teacher may review unusual writing activity.</div><div class="row" style="margin-top:10px"><span class="counter" id="wordCount">0 words</span><span class="muted" id="savedAt">Not saved yet</span></div><div class="actions"><button class="alt" id="back">Back to assignments</button><button id="save">Save draft now</button><button id="submit">Submit final essay</button></div><p id="editorStatus" class="status hidden" aria-live="polite"></p><p class="help">After submission, your essay is locked for assessment. Check it carefully first.</p><section id="reviewBox" class="review-box hidden"></section></section>
 <nav class="student-footer-nav" aria-label="Student navigation"><a href="student-login.html">← Back to Student Dashboard</a><a href="student-portal.html">Assigned Tests</a><a href="student-portal.html?view=open">Open Tests</a></nav></main><script>
 const $=id=>document.getElementById(id),TOKEN='sap_student_session_v1',CONFIG='sap_supabase_public_config_v1';
 const PLATFORM_CONFIG={url:'https://wappdiduuulrrnaczaxl.supabase.co',key:'sb_publishable_PN45VL5nOCBpC1VTgcgkPg_XDipy8N2'};
@@ -96,6 +96,35 @@ function markEssayChanged(){
  updateCount();$('saveState').textContent='Unsaved changes';
  clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200);
 }
+// Remember the insertion point when a touch toolbar button takes focus away from the editor.
+let essayCaret=null;
+document.addEventListener('selectionchange',()=>{
+ const selection=window.getSelection(),editor=$('essay');
+ if(selection&&selection.rangeCount&&editor.contains(selection.anchorNode)&&editor.contains(selection.focusNode)){
+  essayCaret=selection.getRangeAt(0).cloneRange();
+ }
+});
+function insertEssayParagraph(){
+ const editor=$('essay');
+ if(editor.getAttribute('contenteditable')!=='true')return;
+ editor.focus();
+ const selection=window.getSelection();
+ if(essayCaret&&selection){
+  selection.removeAllRanges();
+  selection.addRange(essayCaret.cloneRange());
+ }
+ document.execCommand('insertParagraph',false,null);
+ syncToolbar();
+ markEssayChanged();
+}
+$('newParagraph').addEventListener('mousedown',e=>e.preventDefault());
+$('newParagraph').addEventListener('click',insertEssayParagraph);
+$('essay').addEventListener('keydown',e=>{
+ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){
+  e.preventDefault();
+  insertEssayParagraph();
+ }
+});
 document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('mousedown',e=>e.preventDefault()));
 document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('click',()=>{
  if($('essay').disabled)return;
