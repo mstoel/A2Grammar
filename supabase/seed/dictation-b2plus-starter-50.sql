@@ -5,7 +5,7 @@ values
   ('B2+','abstain','The judge decided to abstain from commenting on the ongoing case.','งดเว้น',true),
   ('B2+','accredit','An independent body will accredit the training programme.','รับรองมาตรฐาน',true),
   ('B2+','accreditation','The college is applying for international accreditation.','การรับรองมาตรฐาน',true),
-  ('B2+','acquiesce','After a lengthy discussion, the committee agreed to acquiesce to the revised conditions.','ยอมทำตาม',true),
+  ('B2+','acquiesce','Although they disagreed, the committee eventually acquiesced to the revised conditions.','ยอมทำตาม',true),
   ('B2+','adroit','The negotiator used an adroit response to resolve the disagreement.','คล่องแคล่วและชาญฉลาด',true),
   ('B2+','affinity','She has a natural affinity for languages and music.','ความชอบหรือความผูกพัน',true),
   ('B2+','aggrieved','The aggrieved residents asked the council to review its decision.','รู้สึกว่าไม่ได้รับความเป็นธรรม',true),
