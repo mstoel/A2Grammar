@@ -120,7 +120,7 @@ values
   ('B2','competent','A competent technician checked the electrical system.','มีความสามารถ',true),
   ('B2','complement','The photographs complement the written explanation.','เสริมให้สมบูรณ์',true),
   ('B2','concede','He had to concede that the evidence was convincing.','ยอมรับ',true),
-  ('B2','concurrent','The two workshops are concurrent, so participants must choose one.','ที่เกิดขึ้นพร้อมกัน',true),
+  ('B2','concurrent','The two workshops will take place concurrently, so participants must choose one.','ที่เกิดขึ้นพร้อมกัน',true),
   ('B2','confer','The committee will confer before making its final decision.','ปรึกษาหารือ',true),
   ('B2','conform','All equipment must conform to the safety standards.','เป็นไปตาม',true),
   ('B2','consecutive','She was absent for three consecutive school days.','ติดต่อกัน',true),
