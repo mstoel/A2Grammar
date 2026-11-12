@@ -45,7 +45,7 @@ values
   ('B2+','expediency','The decision was based on political expediency rather than long-term benefit.','ความสะดวกเฉพาะหน้า',true),
   ('B2+','expedite','The new online system should expedite the application process.','เร่งรัด',true),
   ('B2+','expeditious','An expeditious review will help prevent further delays.','รวดเร็วและมีประสิทธิภาพ',true),
-  ('B2+','expiate','He tried to expiate his earlier mistake by taking responsibility.','ชดใช้ความผิด',true),
+  ('B2+','expiate','He tried to expiate his earlier mistake by making amends to those affected.','ชดใช้ความผิด',true),
   ('B2+','expiation','The novel explores guilt and the search for expiation.','การชดใช้ความผิด',true),
   ('B2+','explicate','The article attempts to explicate the central argument in detail.','อธิบายอย่างละเอียด',true),
   ('B2+','explication','The teacher''s explication of the poem revealed several layers of meaning.','การอธิบายอย่างละเอียด',true),
