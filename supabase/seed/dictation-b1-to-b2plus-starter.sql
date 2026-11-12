@@ -116,7 +116,7 @@ values
   ('B2','bias','The article showed a bias towards one political viewpoint.','อคติ',true),
   ('B2','coherent','Her argument was coherent and supported by relevant examples.','สอดคล้องเป็นเหตุเป็นผล',true),
   ('B2','coincide','The school holiday will coincide with the local festival.','เกิดขึ้นพร้อมกัน',true),
-  ('B2','compensate','The company agreed to compensate customers for the delay.','ชดเชย',true),
+  ('B2','repercussion','The decision had serious repercussions for the local community.','ผลกระทบที่ตามมา',true),
   ('B2','competent','A competent technician checked the electrical system.','มีความสามารถ',true),
   ('B2','complement','The photographs complement the written explanation.','เสริมให้สมบูรณ์',true),
   ('B2','concede','He had to concede that the evidence was convincing.','ยอมรับ',true),
