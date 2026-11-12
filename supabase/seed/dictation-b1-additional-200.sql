@@ -133,7 +133,7 @@ values
   ('B1','comfortable','These shoes are comfortable enough for walking all day.','สบาย',true),
   ('B1','comment','The teacher wrote a helpful comment on my essay.','ความคิดเห็น',true),
   ('B1','commercial','The company produced a short commercial for television.','โฆษณาทางการค้า',true),
-  ('B1','commission','The artist received a commission to paint the new library.','งานที่ได้รับมอบหมาย',true),
+  ('B1','obstacle','A lack of transport was a major obstacle for the students.','อุปสรรค',true),
   ('B1','common','It is common for heavy rain to occur in this season.','พบได้ทั่วไป',true),
   ('B1','community','The community organised a clean-up day.','ชุมชน',true),
   ('B1','company','The company opened a new office in the city.','บริษัท',true),
