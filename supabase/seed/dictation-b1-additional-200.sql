@@ -178,7 +178,7 @@ values
   ('B1','degree','Water freezes at zero degrees Celsius.','องศา',true),
   ('B1','delay','The flight was delayed because of bad weather.','ความล่าช้า',true),
   ('B1','delighted','We were delighted to hear that everyone had arrived safely.','ยินดีมาก',true),
-  ('B1','departure','The train's departure was announced over the loudspeaker.','การออกเดินทาง',true),
+  ('B1','departure','The train''s departure was announced over the loudspeaker.','การออกเดินทาง',true),
   ('B1','desert','Few plants can survive in the driest part of the desert.','ทะเลทราย',true),
   ('B1','design','The students created a design for a new playground.','ออกแบบ',true),
   ('B1','designer','The designer chose simple colours for the poster.','นักออกแบบ',true),
