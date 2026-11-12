@@ -158,7 +158,7 @@ values
   ('B1+','dominant','English is the dominant language in many international meetings.','เด่นกว่า',true),
   ('B1+','dominate','Large companies often dominate this market.','ครอบงำ',true),
   ('B1+','dramatic','There was a dramatic improvement in her reading score.','อย่างมาก',true),
-  ('B1+','dramatically','Temperatures dropped dramatically overnight.','อย่างรวดเร็ว',true),
+  ('B1+','dramatically','Temperatures dropped dramatically overnight.','อย่างมาก หรืออย่างเห็นได้ชัด',true),
   ('B1+','duration','The duration of the test is forty-five minutes.','ระยะเวลา',true),
   ('B1+','dynamic','The teacher used a dynamic approach to group discussion.','มีพลังและเปลี่ยนแปลง',true),
   ('B1+','economic','The report describes the country''s economic situation.','ทางเศรษฐกิจ',true),
