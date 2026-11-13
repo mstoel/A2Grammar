@@ -16,8 +16,8 @@ create policy "school admins read individual assessment assignments" on public.s
 drop policy if exists "school admins create individual assessment assignments" on public.student_assessment_assignments;
 create policy "school admins create individual assessment assignments" on public.student_assessment_assignments for insert to authenticated with check (
  public.has_school_role(school_id,array['owner','admin'])
- and exists(select 1 from public.students s where s.id=student_id and s.school_id=school_id and s.class_id=class_id and s.is_active=true)
- and exists(select 1 from public.assessments a where a.id=assessment_id and a.is_active=true)
+ and exists(select 1 from public.students s where s.id=student_assessment_assignments.student_id and s.school_id=student_assessment_assignments.school_id and s.class_id=student_assessment_assignments.class_id and s.is_active=true)
+ and exists(select 1 from public.assessments a where a.id=student_assessment_assignments.assessment_id and a.is_active=true)
 );
 drop policy if exists "school admins remove individual assessment assignments" on public.student_assessment_assignments;
 create policy "school admins remove individual assessment assignments" on public.student_assessment_assignments for delete to authenticated using (public.has_school_role(school_id,array['owner','admin']));
