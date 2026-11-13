@@ -254,6 +254,7 @@ WITH translations(word, thai_translation) AS (
     ('weekend', 'วันหยุดสุดสัปดาห์'),
     ('wife', 'ภรรยา'),
     ('winter', 'ฤดูหนาว'),
+    ('word', 'คำ / คำศัพท์'),
     ('work', 'ทำงาน / งาน'),
     ('worker', 'คนงาน'),
     ('writer', 'นักเขียน'),
