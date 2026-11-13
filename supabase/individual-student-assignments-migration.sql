@@ -37,3 +37,11 @@ with check (
 
 comment on column public.students.class_id is
   'Nullable. Null identifies a learner who is registered directly with the school but is not enrolled in a regular class.';
+
+drop policy if exists "school admins read independent students" on public.students;
+create policy "school admins read independent students"
+on public.students for select to authenticated
+using (
+  class_id is null
+  and public.has_school_role(school_id,array['owner','admin'])
+);
