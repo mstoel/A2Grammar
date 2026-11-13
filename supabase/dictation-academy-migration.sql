@@ -6,10 +6,15 @@ create table if not exists public.dictation_words (
   level_code text not null check (level_code in ('Pre-A1','A1','A1+','A2','A2+','B1','B1+','B2','B2+','C1','C1+','C2','C2+')),
   word text not null,
   sentence text not null default '',
+  thai_translation text not null default '',
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   unique(level_code, word)
 );
+
+-- Add this column safely when upgrading an existing Dictation Academy database.
+alter table public.dictation_words
+  add column if not exists thai_translation text not null default '';
 
 create index if not exists idx_dictation_words_level_active
   on public.dictation_words(level_code, is_active);
