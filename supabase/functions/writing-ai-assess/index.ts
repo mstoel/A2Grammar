@@ -244,6 +244,48 @@ Deno.serve(async (req) => {
           else if (Array.isArray(content)) raw = content.map((part: any) => typeof part === "string" ? part : String(part?.text || "")).join("").trim();
           if (raw) {
             providerUsed = "Groq (" + String(data?.model || "openai/gpt-oss-20b") + ")";
+            // Validate rubric scores before accepting this provider's response.
+            // A malformed Groq score should trigger the next provider, not stop assessment.
+            try {
+              let candidate = raw.trim().replace(/^\uFEFF/, "");
+              candidate = candidate.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+              let parsed: any;
+              try {
+                parsed = JSON.parse(candidate);
+              } catch {
+                const firstBrace = candidate.indexOf("{");
+                const lastBrace = candidate.lastIndexOf("}");
+                if (firstBrace < 0 || lastBrace <= firstBrace) throw new Error("No complete JSON object found.");
+                parsed = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+              }
+              const returned = Array.isArray(parsed?.criteria) ? parsed.criteria : [];
+              let invalidReason = "";
+              if (returned.length !== rubric.length) {
+                invalidReason = "returned " + returned.length + " criteria; expected " + rubric.length;
+              } else {
+                for (let i = 0; i < rubric.length; i++) {
+                  const item = returned[i];
+                  const expectedMax = Number(rubric[i].max) || 0;
+                  const score = Number(item?.score);
+                  const max = Number(item?.max);
+                  if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax ||
+                      (Number.isFinite(max) && max !== expectedMax) ||
+                      (item.rubricIndex !== undefined && Number(item.rubricIndex) !== i)) {
+                    invalidReason = "invalid score or maximum for rubric criterion " + (i + 1);
+                    break;
+                  }
+                }
+              }
+              if (invalidReason) {
+                providerErrors.push("Groq " + invalidReason + "; trying the next provider.");
+                raw = "";
+              }
+            } catch (validationError) {
+              providerErrors.push("Groq returned an unusable assessment (" +
+                (validationError instanceof Error ? validationError.message : String(validationError)) +
+                "); trying the next provider.");
+              raw = "";
+            }
           } else {
             providerErrors.push("Groq returned no text (finish reason: " + String(data?.choices?.[0]?.finish_reason || "unknown") + ").");
           }
