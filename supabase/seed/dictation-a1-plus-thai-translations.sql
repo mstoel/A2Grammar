@@ -80,7 +80,7 @@ WITH translations(word, thai_translation) AS (
     ("entrance", "ทางเข้า"),
     ("especially", "โดยเฉพาะ"),
     ("event", "เหตุการณ์ / งาน"),
-    ("exactly", "อย่าง 정확 / พอดี"),
+    ("exactly", "อย่างถูกต้อง / พอดี"),
     ("example", "ตัวอย่าง"),
     ("excellent", "ยอดเยี่ยม"),
     ("exit", "ทางออก"),
