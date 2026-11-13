@@ -199,7 +199,7 @@ $("prevQuestion").onclick=()=>{if(questionIndex>0){questionIndex--;showQuestion(
 $("nextQuestion").onclick=async()=>{
   if(questionIndex<24){questionIndex++;showQuestion();return}
   $("nextQuestion").disabled=true;
-  try{const d=await api({action:"submit",attemptId:test.attemptId,answers});speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");unlockPage();test=null;await openLevel(selectedLevel);setStatus(d.mode==="practice"?"Practice complete: "+d.correct+"/25 ("+d.score+"%). Your correctly spelled words have been added to your mastery tracker.":"Final assessment: "+d.correct+"/25 ("+d.score+"%). "+(d.passed?"You passed and the next level is unlocked!":"You need 24 correct answers to pass. Keep practising!"),d.passed?"good":"");}
+  try{const d=await api({action:"submit",attemptId:test.attemptId,answers});speechSynthesis?.cancel?.();$("testArea").classList.add("hidden");unlockPage();test=null;await loadDashboard();await openLevel(selectedLevel);setStatus(d.mode==="practice"?"Practice complete: "+d.correct+"/25 ("+d.score+"%). Your correctly spelled words have been added to your mastery tracker.":"Final assessment: "+d.correct+"/25 ("+d.score+"%). "+(d.passed?"You passed and the next level is unlocked!":"You need 24 correct answers to pass. Keep practising!"),d.passed?"good":"");}
   catch(e){$("testMessage").textContent=e.message}
   finally{$("nextQuestion").disabled=false}
 };
