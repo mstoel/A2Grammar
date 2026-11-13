@@ -519,73 +519,41 @@ Deno.serve(async (req) => {
     }
 
     if (action === "dashboard") {
-      const { data: assignedRows, error: assignedErr } = await db.from("assessment_assignments")
-        .select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode),classes!inner(id,is_active)")
-        .eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true);
-      if (assignedErr) throw assignedErr;
-      const assigned = (assignedRows || []).map((x: any) => x.assessments).filter((a: any) =>
-        a && a.is_active && a.is_published && notClosed(a)
-      );
-      const assessmentIds = assigned.map((a: any) => a.id);
+      const [{ data: assignedRows, error: assignedErr }, { data: individualRows, error: individualErr }] = await Promise.all([
+        db.from("assessment_assignments").select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode),classes!inner(id,is_active)").eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true),
+        db.from("student_assessment_assignments").select("id,assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode)").eq("student_id", session.student_id).eq("school_id", session.school_id).eq("class_id", session.students.class_id)
+      ]);
+      if (assignedErr) throw assignedErr; if (individualErr) throw individualErr;
+      const byAssessment = new Map<string, any>();
+      for (const row of [...(assignedRows || []), ...(individualRows || [])]) { const a = row.assessments; if (a && a.is_active && a.is_published && notClosed(a) && !byAssessment.has(a.id)) byAssessment.set(a.id, a); }
+      const assigned = [...byAssessment.values()], assessmentIds = assigned.map((a: any) => a.id);
       let attempts: any[] = [];
-      if (assessmentIds.length) {
-        const { data, error } = await db.from("attempts").select("id,assessment_id,score_percent,completed_at,correct_count,questions_answered,result")
-          .eq("student_id", session.student_id).in("assessment_id", assessmentIds).order("completed_at", { ascending: false });
-        if (error) throw error;
-        attempts = data || [];
-      }
-      const completedById = new Map<string, any>();
-      for (const a of attempts) if (!completedById.has(a.assessment_id)) completedById.set(a.assessment_id, a);
-      const { data: writingAssignments, error: writingErr } = await db.from("writing_assignments")
-        .select("id,title,prompt,instructions,rubric,min_words,max_words,due_at,status,classes(name)")
-        .eq("school_id", session.school_id).eq("status", "published")
-        .or("class_id.eq."+session.students.class_id+",is_open_test.eq.true")
-        .order("created_at", { ascending: false });
+      if (assessmentIds.length) { const { data, error } = await db.from("attempts").select("id,assessment_id,score_percent,completed_at,correct_count,questions_answered,result").eq("student_id", session.student_id).in("assessment_id", assessmentIds).order("completed_at", { ascending: false }); if (error) throw error; attempts = data || []; }
+      const completedById = new Map<string, any>(); for (const a of attempts) if (!completedById.has(a.assessment_id)) completedById.set(a.assessment_id, a);
+      const { data: writingAssignments, error: writingErr } = await db.from("writing_assignments").select("id,title,prompt,instructions,rubric,min_words,max_words,due_at,status,classes(name)").eq("school_id", session.school_id).eq("status", "published").or("class_id.eq."+session.students.class_id+",is_open_test.eq.true").order("created_at", { ascending: false });
       if (writingErr) throw writingErr;
-      const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions")
-        .select("assignment_id,status,submitted_at,teacher_scores,teacher_feedback,submitted_text,ai_review")
-        .eq("student_id", session.student_id);
+      const { data: writingSubs, error: writingSubErr } = await db.from("writing_submissions").select("assignment_id,status,submitted_at,teacher_scores,teacher_feedback,submitted_text,ai_review").eq("student_id", session.student_id);
       if (writingSubErr) throw writingSubErr;
       const subById = new Map((writingSubs || []).map((x: any) => [x.assignment_id, x]));
-      const assessmentItems = assigned.map((a: any) => {
-        const attempt = completedById.get(a.id);
-        return { id: a.id, resultId: attempt?.id || null, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null, ...availability(a) };
-      });
-      const writingItems = (writingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => {
-        const sub: any = subById.get(a.id);
-        const scores = sub?.teacher_scores || {};
-        const total = Number.isFinite(Number(scores.total)) ? Number(scores.total) : null;
-        const max = Number.isFinite(Number(scores.max)) && Number(scores.max) > 0 ? Number(scores.max) : 100;
-        const score = total !== null ? Math.round(Math.max(0, Math.min(100, total / max * 100))) : null;
-        return { id: a.id, title: a.title, kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), submitted: ["submitted","reviewed"].includes(sub?.status), score, status: sub?.status || "not-started", completedAt: sub?.submitted_at || null, reviewed: sub?.status === "reviewed" };
-      });
-      const { data: diagnosticRows, error: diagnosticErr } = await db.from("diagnostic_results")
-        .select("id,completed_at,overall_percent,diagnostic_key,report")
-        .eq("student_id", session.student_id)
-        .order("completed_at", { ascending: false });
+      const assessmentItems = assigned.map((a: any) => { const attempt = completedById.get(a.id); return { id: a.id, resultId: attempt?.id || null, title: a.title, description: a.description, kind: a.engine_key === "mc-assessment-builder-v1" ? "Multiple choice" : a.engine_key === "essay-rubric-v1" ? "Writing" : a.engine_key === "a2-adaptive-grammar-v1" ? "Grammar diagnostic" : "Assessment", supported: a.engine_key === "mc-assessment-builder-v1", completed: !!attempt, score: attempt ? Number(attempt.score_percent) : null, completedAt: attempt?.completed_at || null, ...availability(a) }; });
+      const writingItems = (writingAssignments || []).filter((a: any) => !a.due_at || Date.parse(a.due_at) > Date.now()).map((a: any) => { const sub: any = subById.get(a.id), scores = sub?.teacher_scores || {}; const total = Number.isFinite(Number(scores.total)) ? Number(scores.total) : null; const max = Number.isFinite(Number(scores.max)) && Number(scores.max) > 0 ? Number(scores.max) : 100; const score = total !== null ? Math.round(Math.max(0, Math.min(100, total / max * 100))) : null; return { id: a.id, title: a.title, kind: "Writing", completed: ["submitted","reviewed"].includes(sub?.status), submitted: ["submitted","reviewed"].includes(sub?.status), score, status: sub?.status || "not-started", completedAt: sub?.submitted_at || null, reviewed: sub?.status === "reviewed" }; });
+      const { data: diagnosticRows, error: diagnosticErr } = await db.from("diagnostic_results").select("id,completed_at,overall_percent,diagnostic_key,report").eq("student_id", session.student_id).order("completed_at", { ascending: false });
       if (diagnosticErr) throw diagnosticErr;
-      const diagnostics = (diagnosticRows || []).map((r: any) => ({
-        id: r.id, resultId: r.id, title: r.report?.testName || (r.diagnostic_key === "a2-adaptive-grammar-v1" ? "A2 Grammar Diagnostic" : "Grammar Diagnostic"),
-        kind: "Grammar diagnostic", completed: true, score: Number(r.overall_percent), completedAt: r.completed_at,
-        description: "Completed diagnostic"
-      }));
+      const diagnostics = (diagnosticRows || []).map((r: any) => ({ id: r.id, resultId: r.id, title: r.report?.testName || (r.diagnostic_key === "a2-adaptive-grammar-v1" ? "A2 Grammar Diagnostic" : "Grammar Diagnostic"), kind: "Grammar diagnostic", completed: true, score: Number(r.overall_percent), completedAt: r.completed_at, description: "Completed diagnostic" }));
       return json({ student: session.students.display_name || session.students.student_code, className: session.students.classes?.name || "", assessments: assessmentItems, writing: writingItems, diagnostics });
     }
 
     if (action === "list") {
-      const { data: assignments, error } = await db.from("assessment_assignments")
-        .select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode),classes!inner(id,is_active)")
-        .eq("class_id", session.students.class_id)
-        .eq("school_id", session.school_id)
-        .eq("classes.is_active", true);
-      if (error) throw error;
-      const items = (assignments || []).map((x: any) => x.assessments).filter((a: any) =>
-        a && a.is_active && a.is_published && notClosed(a)
-      ).map((a: any) => ({
+      const [{ data: assignments, error }, { data: individualAssignments, error: individualError }] = await Promise.all([
+        db.from("assessment_assignments").select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode),classes!inner(id,is_active)").eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true),
+        db.from("student_assessment_assignments").select("id,assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode)").eq("student_id", session.student_id).eq("school_id", session.school_id).eq("class_id", session.students.class_id)
+      ]);
+      if (error) throw error; if (individualError) throw individualError;
+      const byAssessment = new Map<string, any>();
+      for (const row of [...(assignments || []), ...(individualAssignments || [])]) { const a = row.assessments; if (a && a.is_active && a.is_published && notClosed(a) && !byAssessment.has(a.id)) byAssessment.set(a.id, a); }
+      const items = [...byAssessment.values()].map((a: any) => ({
         id: a.id, title: a.title, description: a.description, engineKey: a.engine_key,
-        kind: a.engine_key === "mc-assessment-builder-v1" ? "multiple-choice" :
-          a.engine_key === "essay-rubric-v1" ? "essay-rubric" :
-          ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key) ? "adaptive-diagnostic" : "other",
+        kind: a.engine_key === "mc-assessment-builder-v1" ? "multiple-choice" : a.engine_key === "essay-rubric-v1" ? "essay-rubric" : ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key) ? "adaptive-diagnostic" : "other",
         supported: a.engine_key === "mc-assessment-builder-v1" || ["a2-adaptive-grammar-v1","b1-adaptive-grammar-v1"].includes(a.engine_key),
         launchUrl: a.engine_key === "a2-adaptive-grammar-v1" ? "student-diagnostic.html" : a.engine_key === "b1-adaptive-grammar-v1" ? "student-b1-diagnostic.html" : null, ...availability(a),
       }));
@@ -602,13 +570,13 @@ Deno.serve(async (req) => {
       if (!assessment || !assessment.is_active || !inWindow(assessment)) {
         return json({ error: "This assessment is not currently available." }, 403);
       }
-      const { data: assignment, error: assignErr } = await db.from("assessment_assignments")
-        .select("assessment_id,school_id,class_id,classes!inner(is_active)")
-        .eq("assessment_id", assessmentId).eq("school_id", session.school_id)
-        .eq("class_id", session.students.class_id).eq("classes.is_active", true).maybeSingle();
-      if (assignErr) throw assignErr;
+      const [{ data: assignment, error: assignErr }, { data: individualAssignment, error: individualErr }] = await Promise.all([
+        db.from("assessment_assignments").select("assessment_id,school_id,class_id,classes!inner(is_active)").eq("assessment_id", assessmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("classes.is_active", true).maybeSingle(),
+        db.from("student_assessment_assignments").select("id,assessment_id,student_id,class_id,school_id").eq("assessment_id", assessmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("student_id", session.student_id).maybeSingle()
+      ]);
+      if (assignErr) throw assignErr; if (individualErr) throw individualErr;
       const isSchoolOpenTest = assessment.is_open_test && assessment.open_test_school_id === session.school_id;
-      if (!assignment && !isSchoolOpenTest) return json({ error: "This assessment is not assigned to your class or published as an Open Test." }, 403);
+      if (!assignment && !individualAssignment && !isSchoolOpenTest) return json({ error: "This assessment is not assigned to you or your class, or published as an Open Test." }, 403);
       if (!assessment.is_published && !isSchoolOpenTest) return json({ error: "This assessment is not currently available." }, 403);
       if (assessment.engine_key !== "mc-assessment-builder-v1") {
         return json({ error: "This assessment type is listed, but online delivery for this type is not ready yet." }, 501);
@@ -655,7 +623,7 @@ Deno.serve(async (req) => {
         return { questionId: String(q.id ?? ""), chosenIndex: valid ? chosen : null, correct: isCorrect, pointsEarned: isCorrect ? points : 0 };
       });
       const percent = possible ? Math.round((earned / possible) * 10000) / 100 : 0;
-      const storage = ["none", "anonymous", "identified"].includes(assessment.result_storage_mode) ? assessment.result_storage_mode : "none";
+      const storage = individualAssignment ? "identified" : (["none", "anonymous", "identified"].includes(assessment.result_storage_mode) ? assessment.result_storage_mode : "none");
       if (storage === "identified") {
         const { error } = await db.from("attempts").insert({
           student_id: session.student_id, assessment_id: assessment.id, completed_at: new Date().toISOString(),
