@@ -433,14 +433,20 @@ Deno.serve(async (req) => {
       if (!diagnostic) return json({ error: "This diagnostic version is not supported." }, 400);
       const assignmentId = String(body.assignmentId || "").trim();
       if (assignmentId) {
-        const { data: assigned, error: assignmentError } = await db.from("assessment_assignments")
-          .select("assessment_id,assessments!inner(engine_key,is_published,is_active)")
-          .eq("assessment_id", assignmentId).eq("school_id", session.school_id)
-          .eq("class_id", session.students.class_id).maybeSingle();
+        const [{ data: assigned, error: assignmentError }, { data: individuallyAssigned, error: individualError }] = await Promise.all([
+          db.from("assessment_assignments").select("assessment_id,assessments!inner(engine_key,is_published,is_active)").eq("assessment_id", assignmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).maybeSingle(),
+          db.from("student_assessment_assignments").select("assessment_id").eq("assessment_id", assignmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("student_id", session.student_id).maybeSingle()
+        ]);
         if (assignmentError) throw assignmentError;
-        const assignedAssessment = assigned?.assessments as any;
-        if (!assigned || !assignedAssessment || assignedAssessment.engine_key !== diagnostic.key || !assignedAssessment.is_published || !assignedAssessment.is_active) {
-          return json({ error: "This diagnostic is not assigned to your class or is no longer available." }, 403);
+        if (individualError) throw individualError;
+        let assignedAssessment = assigned?.assessments as any;
+        if (!assignedAssessment && individuallyAssigned) {
+          const { data, error } = await db.from("assessments").select("engine_key,is_published,is_active").eq("id", assignmentId).maybeSingle();
+          if (error) throw error;
+          assignedAssessment = data;
+        }
+        if ((!assigned && !individuallyAssigned) || !assignedAssessment || assignedAssessment.engine_key !== diagnostic.key || !assignedAssessment.is_published || !assignedAssessment.is_active) {
+          return json({ error: "This diagnostic is not assigned to you or your class, or is no longer available." }, 403);
         }
       }
       const score = report.score || {};
