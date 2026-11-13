@@ -319,7 +319,20 @@ $('createAllLoyDrafts').onclick=async()=>{
  }catch(error){say('Week 4 creation stopped: '+(error instanceof Error?error.message:String(error)));}
  finally{button.disabled=false;}
 };
-$('openTest').addEventListener('change',updateClassTargetHint);$('save').onclick=()=>saveAssignment().catch(e=>say(e.message));$('mark').onclick=()=>saveReview().catch(e=>say(e.message));$('printReport').onclick=()=>printReport();$('shareLine').onclick=()=>shareLine();$('copyReport').onclick=()=>copyReport().catch(e=>say(e.message));$('aiAssess').onclick=()=>assessWithAI();$('applyAiScores').onclick=()=>applyLatestAIScores();
+$('openTest').addEventListener('change',updateClassTargetHint);
+$('save').onclick=async()=>{
+ const button=$('save'),original=button.textContent;
+ button.disabled=true;button.textContent='Saving assignment…';
+ try{
+  await saveAssignment();
+  const status=$('pub').value==='published'?'Assignment published. Check the selected class dashboard.':'Draft saved successfully. To make it visible to students, open Assignments and click Publish.';
+  say(status);
+  $('status').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(e){
+  say('Could not save assignment: '+(e instanceof Error?e.message:String(e)));
+  $('status').scrollIntoView({behavior:'smooth',block:'start'});
+ }finally{button.disabled=false;button.textContent=original;}
+};$('mark').onclick=()=>saveReview().catch(e=>say(e.message));$('printReport').onclick=()=>printReport();$('shareLine').onclick=()=>shareLine();$('copyReport').onclick=()=>copyReport().catch(e=>say(e.message));$('aiAssess').onclick=()=>assessWithAI();$('applyAiScores').onclick=()=>applyLatestAIScores();
 function navigateTo(id){const target=$(id);if(!target)return;if(id==='review'&&$('review').hidden){say('Open a student submission first, then its review panel will appear.');return;}const sectionId=(id==='rubricPanel'||id==='aiPanel')?'createSection':id;document.querySelectorAll('.content>section').forEach(s=>s.classList.toggle('active',s.id===sectionId||s.id==='review'&&id==='review'));if(id==='review')$('review').hidden=false;if(target.tagName==='DETAILS'){target.open=true;const parent=target.closest('section');if(parent)parent.classList.add('active');}document.querySelectorAll('.sidebar [data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===id));target.scrollIntoView({behavior:'smooth',block:'start'});}
 document.querySelectorAll('.sidebar [data-nav], .panel-tools [data-nav]').forEach(b=>b.addEventListener('click',()=>navigateTo(b.dataset.nav)));
 const originalOpenReview=openReview;
