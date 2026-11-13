@@ -45,3 +45,15 @@ using (
   class_id is null
   and public.has_school_role(school_id,array['owner','admin'])
 );
+
+drop policy if exists "school admins update independent students" on public.students;
+create policy "school admins update independent students"
+on public.students for update to authenticated
+using (
+  class_id is null
+  and public.has_school_role(school_id,array['owner','admin'])
+)
+with check (
+  class_id is null
+  and public.has_school_role(school_id,array['owner','admin'])
+);
