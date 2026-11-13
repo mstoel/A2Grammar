@@ -434,8 +434,8 @@ Deno.serve(async (req) => {
       const assignmentId = String(body.assignmentId || "").trim();
       if (assignmentId) {
         const [{ data: assigned, error: assignmentError }, { data: individuallyAssigned, error: individualError }] = await Promise.all([
-          db.from("assessment_assignments").select("assessment_id,assessments!inner(engine_key,is_published,is_active)").eq("assessment_id", assignmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).maybeSingle(),
-          db.from("student_assessment_assignments").select("assessment_id").eq("assessment_id", assignmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("student_id", session.student_id).maybeSingle()
+          db.from("assessment_assignments").select("assessment_id,assessments!inner(engine_key,is_published,is_active)").eq("assessment_id", assignmentId).eq("school_id", session.school_id).filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id).maybeSingle(),
+          db.from("student_assessment_assignments").select("assessment_id").eq("assessment_id", assignmentId).eq("school_id", session.school_id).filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id).eq("student_id", session.student_id).maybeSingle()
         ]);
         if (assignmentError) throw assignmentError;
         if (individualError) throw individualError;
@@ -526,8 +526,8 @@ Deno.serve(async (req) => {
 
     if (action === "dashboard") {
       const [{ data: assignedRows, error: assignedErr }, { data: individualRows, error: individualErr }] = await Promise.all([
-        db.from("assessment_assignments").select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode),classes!inner(id,is_active)").eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true),
-        db.from("student_assessment_assignments").select("id,assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode)").eq("student_id", session.student_id).eq("school_id", session.school_id).eq("class_id", session.students.class_id)
+        db.from("assessment_assignments").select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode),classes!inner(id,is_active)").filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true),
+        db.from("student_assessment_assignments").select("id,assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,result_storage_mode)").eq("student_id", session.student_id).eq("school_id", session.school_id).filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id)
       ]);
       if (assignedErr) throw assignedErr; if (individualErr) throw individualErr;
       const byAssessment = new Map<string, any>();
@@ -551,8 +551,8 @@ Deno.serve(async (req) => {
 
     if (action === "list") {
       const [{ data: assignments, error }, { data: individualAssignments, error: individualError }] = await Promise.all([
-        db.from("assessment_assignments").select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode),classes!inner(id,is_active)").eq("class_id", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true),
-        db.from("student_assessment_assignments").select("id,assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode)").eq("student_id", session.student_id).eq("school_id", session.school_id).eq("class_id", session.students.class_id)
+        db.from("assessment_assignments").select("assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode),classes!inner(id,is_active)").filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id).eq("school_id", session.school_id).eq("classes.is_active", true),
+        db.from("student_assessment_assignments").select("id,assigned_at,assessments(id,title,description,engine_key,is_published,is_active,opens_at,closes_at,assessment_data,result_storage_mode)").eq("student_id", session.student_id).eq("school_id", session.school_id).filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id)
       ]);
       if (error) throw error; if (individualError) throw individualError;
       const byAssessment = new Map<string, any>();
@@ -577,8 +577,8 @@ Deno.serve(async (req) => {
         return json({ error: "This assessment is not currently available." }, 403);
       }
       const [{ data: assignment, error: assignErr }, { data: individualAssignment, error: individualErr }] = await Promise.all([
-        db.from("assessment_assignments").select("assessment_id,school_id,class_id,classes!inner(is_active)").eq("assessment_id", assessmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("classes.is_active", true).maybeSingle(),
-        db.from("student_assessment_assignments").select("id,assessment_id,student_id,class_id,school_id").eq("assessment_id", assessmentId).eq("school_id", session.school_id).eq("class_id", session.students.class_id).eq("student_id", session.student_id).maybeSingle()
+        db.from("assessment_assignments").select("assessment_id,school_id,class_id,classes!inner(is_active)").eq("assessment_id", assessmentId).eq("school_id", session.school_id).filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id).eq("classes.is_active", true).maybeSingle(),
+        db.from("student_assessment_assignments").select("id,assessment_id,student_id,class_id,school_id").eq("assessment_id", assessmentId).eq("school_id", session.school_id).filter("class_id", session.students.class_id === null ? "is" : "eq", session.students.class_id).eq("student_id", session.student_id).maybeSingle()
       ]);
       if (assignErr) throw assignErr; if (individualErr) throw individualErr;
       const isSchoolOpenTest = assessment.is_open_test && assessment.open_test_school_id === session.school_id;
