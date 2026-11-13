@@ -242,16 +242,13 @@ async function loadAssignments(){
   sb.from('student_assessment_assignments').select('id,assessment_id,class_id,student_id,assigned_at,assessments(title,is_published,description,engine_key),classes(name),students(student_code,display_name)').eq('school_id',activeSchool.id).order('assigned_at',{ascending:false}).limit(1000),
   sb.from('writing_assignments').select('id,title,status,class_id,created_at,classes(name)').eq('school_id',activeSchool.id).not('class_id','is',null).order('created_at',{ascending:false}).limit(500)
  ]);
- if(assessmentResult.error&&individualResult.error&&writingResult.error){host.innerHTML='<div class="empty">Could not load assignments: '+esc(assessmentResult.error.message)+' · '+esc(individualResult.error.message)+' · '+esc(writingResult.error.message)+'</div>';return}
+ if(assessmentResult.error||individualResult.error||writingResult.error){const err=assessmentResult.error||individualResult.error||writingResult.error;host.innerHTML='<div class="empty">Could not load assignments: '+esc(err.message)+'</div>';return}
  const selectedClass=$('assignmentClassFilter')?.value||'';
  const allRows=assessmentResult.data||[],allIndividuals=individualResult.data||[],allEssays=writingResult.data||[];
  const rows=selectedClass?allRows.filter(a=>a.class_id===selectedClass):allRows;
  const essays=selectedClass?allEssays.filter(a=>a.class_id===selectedClass):allEssays;
  const individuals=selectedClass?allIndividuals.filter(a=>a.class_id===selectedClass):allIndividuals;
- if(assessmentResult.error||individualResult.error||writingResult.error){
-  const e=assessmentResult.error||individualResult.error||writingResult.error;
-  host.innerHTML='<div class="empty">Some assignments could not be loaded: '+esc(e.message)+'</div>';
- }
+ 
  const assessmentHtml=rows.map(a=>'<div class="rowitem"><div><strong>'+esc(a.assessments?.title||'Assessment')+'</strong><small>Assessment · Class: '+esc(a.classes?.name||'Class')+' · '+(a.assessments?.is_published?'Published':'Draft')+' · Assigned '+esc(a.assigned_at?new Date(a.assigned_at).toLocaleDateString():'date unavailable')+'</small></div>'+(['owner','admin'].includes(activeSchool.role)?'<button class="danger" data-unassign="'+esc(a.assessment_id)+'" data-class="'+esc(a.class_id)+'">Remove assignment</button>':'')+'</div>').join('');
  const individualHtml=individuals.map(a=>'<div class="rowitem"><div><strong>'+esc(a.assessments?.title||'Assessment')+'</strong><small>Individual · '+esc(a.students?.display_name||a.students?.student_code||'Student')+' ('+esc(a.students?.student_code||'')+') · '+esc(a.classes?.name||'Class')+' · Assigned '+esc(a.assigned_at?new Date(a.assigned_at).toLocaleDateString():'date unavailable')+'</small></div>'+(['owner','admin'].includes(activeSchool.role)?'<button class="danger" data-unassign-individual="'+esc(a.id)+'">Remove assignment</button>':'')+'</div>').join('');
  const essayHtml=essays.map(a=>'<div class="rowitem"><div><strong>'+esc(a.title||'Writing assignment')+'</strong><small>Writing essay · Class: '+esc(a.classes?.name||'Class')+' · '+esc(a.status||'Draft')+' · Assigned '+esc(a.created_at?new Date(a.created_at).toLocaleDateString():'date unavailable')+'</small></div>'+(['owner','admin'].includes(activeSchool.role)?'<button class="danger" data-remove-writing="'+esc(a.id)+'">Remove assignment</button>':'<span class="pill">Essay</span>')+'</div>').join('');
