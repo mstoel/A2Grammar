@@ -63,7 +63,7 @@ async function getSession(req: Request, db: any) {
 
 async function levelPassed(db: any, studentId: string, level: string) {
   const { data, error } = await db.from("dictation_attempts").select("id")
-    .eq("student_id", studentId).eq("level_code", level).eq("attempt_type", "assessment").eq("status", "completed").gte("score_percent", 95).limit(1);
+    .eq("student_id", studentId).eq("level_code", level).in("attempt_type", ["assessment", "final"]).eq("status", "completed").gte("score_percent", 95).limit(1);
   if (error) throw error;
   return !!data?.length;
 }
@@ -106,13 +106,14 @@ Deno.serve(async (req) => {
       let previousPassed = true;
       const levels = LEVELS.map((level, index) => {
         const levelAttempts = completed.filter((a: any) => a.level_code === level);
-        const passed = levelAttempts.some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95);
+        const assessmentAttempts = levelAttempts.filter((a: any) => ["assessment", "final"].includes(a.attempt_type));
+        const passed = assessmentAttempts.some((a: any) => Number(a.score_percent) >= 95);
         const result = {
           level,
           unlocked: previousPassed,
           passed,
-          attempts: levelAttempts.length,
-          bestScore: levelAttempts.length ? Math.max(...levelAttempts.map((a: any) => Number(a.score_percent) || 0)) : null,
+          attempts: assessmentAttempts.length,
+          bestScore: assessmentAttempts.length ? Math.max(...assessmentAttempts.map((a: any) => Number(a.score_percent) || 0)) : null,
           mastered: mastered.get(level)?.size || 0,
           totalWords: countResults[index].count || 0,
           lastAttempt: levelAttempts.map((a: any) => a.completed_at).filter(Boolean).sort().at(-1) || null
@@ -149,10 +150,11 @@ Deno.serve(async (req) => {
         const w: any = wordById.get(id);
         return w && t.total >= 10 ? { word: w.word, attempts: t.total, failRate: Math.round(t.failed / t.total * 100) } : null;
       }).filter((w: any) => w && w.failRate > 50).sort((a: any, b: any) => b.failRate - a.failRate);
-      const bestScore = (attempts || []).filter((a: any) => a.attempt_type === "assessment").reduce((best: number, a: any) => Math.max(best, Number(a.score_percent) || 0), 0);
+      const assessmentAttempts = (attempts || []).filter((a: any) => ["assessment", "final"].includes(a.attempt_type));
+      const bestScore = assessmentAttempts.reduce((best: number, a: any) => Math.max(best, Number(a.score_percent) || 0), 0);
       return json({
         level, totalWords: (words || []).length, mastered: ownMastered.size,
-        passed: (attempts || []).some((a: any) => a.attempt_type === "assessment" && Number(a.score_percent) >= 95),
+        passed: assessmentAttempts.some((a: any) => Number(a.score_percent) >= 95),
         attempts: attempts || [], bestScore,
         difficultWords,
         words: (words || []).map((w: any) => {
