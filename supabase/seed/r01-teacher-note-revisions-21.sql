@@ -72,3 +72,82 @@ select question_code, cefr_level, status, correct_option, estimated_seconds
 from public.reading_question_bank
 where question_code in ('A2-002','A2-008','A2-016','A2-018','A2-019','A2-020','A2-021','A2-022','A2-025','A2-026','A2-027','A2-028','A2-029','A2-031','A2-033','A2-035','A2-036','A2-037','A2-040','A2-041','A2-043')
 order by question_code;
+
+-- Balance correct answer positions across the revised set.
+-- The distractor wording is preserved; only option order and answer key change.
+do $$
+declare
+  rec record;
+  correct_text text;
+  distractors jsonb;
+  rebuilt jsonb;
+  d_idx integer;
+  i integer;
+begin
+  for rec in
+    select * from (values
+      ('A2-002','D'),
+('A2-008','A'),
+('A2-016','C'),
+('A2-018','B'),
+('A2-019','D'),
+('A2-020','A'),
+('A2-021','C'),
+('A2-022','B'),
+('A2-025','A'),
+('A2-026','D'),
+('A2-027','B'),
+('A2-028','C'),
+('A2-029','A'),
+('A2-031','D'),
+('A2-033','B'),
+('A2-035','C'),
+('A2-036','A'),
+('A2-037','D'),
+('A2-040','B'),
+('A2-041','C'),
+('A2-043','D')
+    ) as target(question_code, target_position)
+  loop
+    select q.options -> (
+      select ord::integer - 1
+      from jsonb_array_elements(q.options) with ordinality e(value, ord)
+      where e.value->>'label' = q.correct_option
+    ) ->> 'text'
+    into correct_text
+    from public.reading_question_bank q
+    where q.question_code = rec.question_code;
+
+    select jsonb_agg(e.value order by e.ord)
+    into distractors
+    from public.reading_question_bank q,
+         jsonb_array_elements(q.options) with ordinality e(value, ord)
+    where q.question_code = rec.question_code
+      and e.value->>'label' <> q.correct_option;
+
+    rebuilt := '[]'::jsonb;
+    d_idx := 0;
+    for i in 1..4 loop
+      if i = case rec.target_position
+        when 'A' then 1 when 'B' then 2 when 'C' then 3 else 4 end
+      then
+        rebuilt := rebuilt || jsonb_build_array(jsonb_build_object('label', chr(64+i), 'text', correct_text));
+      else
+        rebuilt := rebuilt || jsonb_build_array(jsonb_build_object('label', chr(64+i), 'text', distractors->d_idx->>'text'));
+        d_idx := d_idx + 1;
+      end if;
+    end loop;
+
+    update public.reading_question_bank
+    set options = rebuilt,
+        correct_option = rec.target_position,
+        updated_at = now()
+    where question_code = rec.question_code;
+  end loop;
+end $$;
+
+select correct_option, count(*) as questions
+from public.reading_question_bank
+where question_code in ('A2-002','A2-008','A2-016','A2-018','A2-019','A2-020','A2-021','A2-022','A2-025','A2-026','A2-027','A2-028','A2-029','A2-031','A2-033','A2-035','A2-036','A2-037','A2-040','A2-041','A2-043')
+group by correct_option
+order by correct_option;
