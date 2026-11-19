@@ -43,4 +43,74 @@ on conflict (question_code) do update set
  passage=excluded.passage,prompt=excluded.prompt,options=excluded.options,correct_option=excluded.correct_option,
  rationale=excluded.rationale,difficulty=excluded.difficulty,estimated_seconds=excluded.estimated_seconds,
  status='draft',updated_at=now();
+
+-- Rebalance answer positions without changing the correct answer text.
+do $
+declare
+  q record;
+  desired_label text;
+  correct_text text;
+  distractors text[];
+  rebuilt jsonb;
+  label text;
+  distractor_index integer;
+begin
+  for q in select id, question_code, options, correct_option
+           from public.reading_question_bank
+           where category='R01' and cefr_level='B1'
+             and question_code between 'B1-016' and 'B1-045'
+  loop
+    desired_label := case q.question_code
+    when 'B1-016' then 'A'
+    when 'B1-017' then 'B'
+    when 'B1-018' then 'C'
+    when 'B1-019' then 'D'
+    when 'B1-020' then 'A'
+    when 'B1-021' then 'B'
+    when 'B1-022' then 'C'
+    when 'B1-023' then 'D'
+    when 'B1-024' then 'A'
+    when 'B1-025' then 'B'
+    when 'B1-026' then 'C'
+    when 'B1-027' then 'D'
+    when 'B1-028' then 'A'
+    when 'B1-029' then 'B'
+    when 'B1-030' then 'C'
+    when 'B1-031' then 'D'
+    when 'B1-032' then 'A'
+    when 'B1-033' then 'B'
+    when 'B1-034' then 'C'
+    when 'B1-035' then 'D'
+    when 'B1-036' then 'A'
+    when 'B1-037' then 'B'
+    when 'B1-038' then 'C'
+    when 'B1-039' then 'D'
+    when 'B1-040' then 'A'
+    when 'B1-041' then 'B'
+    when 'B1-042' then 'C'
+    when 'B1-043' then 'D'
+    when 'B1-044' then 'A'
+    when 'B1-045' then 'B'
+    end;
+    select max(e.value->>'text') filter (where e.value->>'label'=q.correct_option),
+           array_agg(e.value->>'text' order by e.ordinality) filter (where e.value->>'label'<>q.correct_option)
+      into correct_text, distractors
+      from jsonb_array_elements(q.options) with ordinality as e(value, ordinality);
+    rebuilt := '[]'::jsonb;
+    distractor_index := 1;
+    for label in select unnest(array['A','B','C','D'])
+    loop
+      if label=desired_label then
+        rebuilt := rebuilt || jsonb_build_array(jsonb_build_object('label',label,'text',correct_text));
+      else
+        rebuilt := rebuilt || jsonb_build_array(jsonb_build_object('label',label,'text',distractors[distractor_index]));
+        distractor_index := distractor_index + 1;
+      end if;
+    end loop;
+    update public.reading_question_bank
+       set options=rebuilt, correct_option=desired_label, updated_at=now()
+     where id=q.id;
+  end loop;
+end $;
+
 commit;
