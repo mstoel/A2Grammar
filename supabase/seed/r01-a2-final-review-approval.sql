@@ -73,13 +73,13 @@ where question_code = 'A2-020';
 
 update public.reading_question_bank set
  options = $j$[
- {"label":"A","text":"A photograph taken by the student of a busy market, where every person in the picture has agreed to appear."},
+ {"label":"A","text":"A student''s own photograph of a busy market, where one recognisable shopper has not agreed to appear."},
  {"label":"B","text":"A photograph taken by the student''s parent, which the student has cropped and edited before entering."},
- {"label":"C","text":"A photograph taken by the student of a stranger who is clearly recognisable but was not asked for permission."},
+ {"label":"C","text":"A student''s own photograph of the town square, with permission from everyone who can be recognised."},
  {"label":"D","text":"A picture downloaded from a travel website showing a familiar street in the student''s town."}
 ]$j$::jsonb,
- correct_option = 'A',
- rationale = 'The entry must be the student''s own photograph, and anyone who can be recognised must have agreed to be photographed.',
+ correct_option = 'C',
+ rationale = 'The photograph must be the student''s own work, and every recognisable person must have agreed to appear.',
  updated_at = now()
 where question_code = 'A2-021';
 
@@ -149,12 +149,12 @@ where question_code = 'A2-028';
 update public.reading_question_bank set
  prompt = 'Which statement is true about the school football practice?',
  options = $j$[
- {"label":"A","text":"The practice has been cancelled because heavy rain is expected."},
+ {"label":"A","text":"The school can use a covered playing area when the main field cannot be used."},
  {"label":"B","text":"Students should bring an additional set of sports clothes for the wet weather."},
- {"label":"C","text":"The school can use a covered playing area when the main field cannot be used."},
+ {"label":"C","text":"The practice has been cancelled because heavy rain is expected."},
  {"label":"D","text":"Students need to bring something to protect themselves from the rain during practice."}
 ]$j$::jsonb,
- correct_option = 'C',
+ correct_option = 'A',
  rationale = 'The practice moves from the main field to the covered court and continues at the normal time. This shows that another playing area is available.',
  updated_at = now()
 where question_code = 'A2-029';
@@ -170,6 +170,13 @@ update public.reading_question_bank set
  rationale = 'Students are asked to collect their materials before lunch, ahead of the room''s closure from 1 p.m.',
  updated_at = now()
 where question_code = 'A2-031';
+ 
+update public.reading_question_bank set
+ passage = $p$ART ROOM NOTICE
+The art room will be closed from 1 p.m. onwards today while the walls are painted. Students who need materials for their projects should collect them before 12 noon.$p$,
+ updated_at = now()
+where question_code = 'A2-031';
+
 
 update public.reading_question_bank set
  prompt = 'Which statement is true about tasting the fruit?',
