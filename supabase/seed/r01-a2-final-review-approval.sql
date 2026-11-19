@@ -61,12 +61,12 @@ where question_code = 'A2-019';
 
 update public.reading_question_bank set
  options = $j$[
- {"label":"A","text":"Ask a friend to share some medicine before the lesson ends."},
- {"label":"B","text":"Go home without telling the teacher or anyone in the health room."},
- {"label":"C","text":"Tell the teacher that they feel unwell before going to the health room."},
+ {"label":"A","text":"Tell the teacher that they feel unwell before going to the health room."},
+ {"label":"B","text":"Ask a friend to share some medicine before the lesson ends."},
+ {"label":"C","text":"Go home without telling the teacher or anyone in the health room."},
  {"label":"D","text":"Wait until 3 p.m. because the nurse cannot see students earlier."}
 ]$j$::jsonb,
- correct_option = 'C',
+ correct_option = 'A',
  rationale = 'The notice tells students to inform their teacher before visiting the health room. It does not tell them to wait until 3 p.m.',
  updated_at = now()
 where question_code = 'A2-020';
