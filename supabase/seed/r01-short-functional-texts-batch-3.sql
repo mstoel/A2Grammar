@@ -98,6 +98,75 @@ on conflict (question_code) do update set
  options=excluded.options, correct_option=excluded.correct_option,
  rationale=excluded.rationale, difficulty=excluded.difficulty,
  estimated_seconds=excluded.estimated_seconds, status=excluded.status, updated_at=now();
+-- Balance correct answer positions across this batch (A/B/C/D) without changing content.
+with target(question_code, target_pos) as (values
+ ('A2-031',1),
+ ('A2-032',2),
+ ('A2-033',3),
+ ('A2-034',4),
+ ('A2-035',1),
+ ('A2-036',2),
+ ('A2-037',3),
+ ('A2-038',4),
+ ('A2-039',1),
+ ('A2-040',2),
+ ('A2-041',3),
+ ('A2-042',4),
+ ('A2-043',1),
+ ('B1-031',1),
+ ('B1-032',2),
+ ('B1-033',3),
+ ('B1-034',4),
+ ('B1-035',1),
+ ('B1-036',2),
+ ('B1-037',3),
+ ('B1-038',4),
+ ('B1-039',1),
+ ('B1-040',2),
+ ('B1-041',3),
+ ('B1-042',4),
+ ('B1-043',1),
+ ('B1-044',2),
+ ('B1-045',3),
+ ('B2-031',1),
+ ('B2-032',2),
+ ('B2-033',3),
+ ('B2-034',4),
+ ('B2-035',1),
+ ('B2-036',2),
+ ('B2-037',3),
+ ('B2-038',4),
+ ('B2-039',1),
+ ('B2-040',2),
+ ('B2-041',3),
+ ('B2-042',4),
+ ('B2-043',1),
+ ('B2-044',2),
+ ('B2-045',3)
+)
+update public.reading_question_bank q
+set options = (
+  select jsonb_agg(jsonb_build_object('label', chr(64 + p.pos), 'text', p.option_text) order by p.pos)
+  from (
+    select gs.pos,
+      case when gs.pos = t.target_pos then (
+        select e.value->>'text' from jsonb_array_elements(q.options) e(value)
+        where e.value->>'label' = q.correct_option
+      ) else (
+        select e.value->>'text' from jsonb_array_elements(q.options) with ordinality e(value, ord)
+        where e.value->>'label' <> q.correct_option
+        order by e.ord
+        offset (gs.pos - case when gs.pos > t.target_pos then 2 else 1 end)
+        limit 1
+      ) end as option_text
+    from generate_series(1,4) gs(pos)
+  ) p
+),
+correct_option = chr(64 + t.target_pos),
+updated_at = now()
+from target t
+where q.question_code = t.question_code;
+
 commit;
 select cefr_level, count(*) as r01_total
 from public.reading_question_bank
