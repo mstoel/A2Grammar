@@ -8,6 +8,16 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const LEVELS = ["Pre-A1","A1","A1+","A2","A2+","B1","B1+","B2","B2+","C1","C1+","C2","C2+"];
+const LEGACY_LEVEL_ALIASES: Record<string, string> = {
+  "Beginner": "Pre-A1", "Elementary": "A1", "Elementary Plus": "A1+",
+  "Intermediate": "A2", "Intermediate Plus": "A2+", "Advanced": "B1",
+  "Advanced Plus": "B1+", "Academic": "B2", "Academic Plus": "B2+",
+  "Academic Pro": "C1", "Genius": "C1+", "Genius Plus": "C2", "Immortal ☠️": "C2+"
+};
+const normalizeLevel = (value: unknown) => {
+  const raw = String(value ?? "").trim();
+  return LEVELS.includes(raw) ? raw : (LEGACY_LEVEL_ALIASES[raw] || raw);
+};
 // Treat common US and UK spelling variants as equivalent in dictation answers.
 const SPELLING_EQUIVALENTS: Record<string, string> = {};
 const SPELLING_PAIRS: Array<[string, string]> = [
@@ -125,7 +135,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "level-detail") {
-      const level = String(body.level || "");
+      const level = normalizeLevel(body.level);
       if (!LEVELS.includes(level)) return json({ error: "Unknown level." }, 400);
       const idx = LEVELS.indexOf(level);
       if (idx > 0 && !(await levelPassed(db, studentId, LEVELS[idx - 1]))) {
@@ -167,7 +177,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "start") {
-      const level = String(body.level || "");
+      const level = normalizeLevel(body.level);
       const mode = body.mode === "practice" ? "practice" : "assessment";
       if (!LEVELS.includes(level)) return json({ error: "Unknown level." }, 400);
       const idx = LEVELS.indexOf(level);
