@@ -1,6 +1,5 @@
--- R01 A2 final teacher review
--- Applies the latest teacher notes to the 21 revised A2 questions.
--- Marks the reviewed set approved only after these final corrections.
+-- R01 A2 final teacher review and approval
+-- Applies teacher-note corrections to 21 revised questions, then approves all 30 A2 R01 questions.
 begin;
 
 update public.reading_question_bank set
@@ -273,7 +272,7 @@ Before you sign out, make sure that any work you want to keep has been saved. Th
  updated_at = now()
 where question_code = 'A2-043';
 
--- Confirm that all 21 questions exist before approving the set.
+-- Confirm that all 30 questions exist before approving the set.
 do $$
 declare
   question_total integer;
@@ -281,23 +280,19 @@ begin
   select count(*) into question_total
   from public.reading_question_bank
   where question_code in (
-    'A2-002','A2-008','A2-016','A2-018','A2-019','A2-020','A2-021',
-    'A2-022','A2-025','A2-026','A2-027','A2-028','A2-029','A2-031',
-    'A2-033','A2-035','A2-036','A2-037','A2-040','A2-041','A2-043'
+    'A2-002','A2-008','A2-016','A2-017','A2-018','A2-019','A2-020','A2-021','A2-022','A2-023','A2-024','A2-025','A2-026','A2-027','A2-028','A2-029','A2-030','A2-031','A2-032','A2-033','A2-034','A2-035','A2-036','A2-037','A2-038','A2-039','A2-040','A2-041','A2-042','A2-043'
   );
-  if question_total <> 21 then
-    raise exception 'Expected 21 R01 A2 questions, found %; no approval applied.', question_total;
+  if question_total <> 30 then
+    raise exception 'Expected 30 R01 A2 questions, found %; no approval applied.', question_total;
   end if;
 end $$;
 
--- Lock the reviewed 21-question set as approved.
+-- Lock the complete 30-question set as approved.
 update public.reading_question_bank
 set status = 'approved',
     updated_at = now()
 where question_code in (
-  'A2-002','A2-008','A2-016','A2-018','A2-019','A2-020','A2-021',
-  'A2-022','A2-025','A2-026','A2-027','A2-028','A2-029','A2-031',
-  'A2-033','A2-035','A2-036','A2-037','A2-040','A2-041','A2-043'
+  'A2-002','A2-008','A2-016','A2-017','A2-018','A2-019','A2-020','A2-021','A2-022','A2-023','A2-024','A2-025','A2-026','A2-027','A2-028','A2-029','A2-030','A2-031','A2-032','A2-033','A2-034','A2-035','A2-036','A2-037','A2-038','A2-039','A2-040','A2-041','A2-042','A2-043'
 );
 
 commit;
@@ -305,8 +300,6 @@ commit;
 select question_code, status, correct_option
 from public.reading_question_bank
 where question_code in (
-  'A2-002','A2-008','A2-016','A2-018','A2-019','A2-020','A2-021',
-  'A2-022','A2-025','A2-026','A2-027','A2-028','A2-029','A2-031',
-  'A2-033','A2-035','A2-036','A2-037','A2-040','A2-041','A2-043'
+  'A2-002','A2-008','A2-016','A2-017','A2-018','A2-019','A2-020','A2-021','A2-022','A2-023','A2-024','A2-025','A2-026','A2-027','A2-028','A2-029','A2-030','A2-031','A2-032','A2-033','A2-034','A2-035','A2-036','A2-037','A2-038','A2-039','A2-040','A2-041','A2-042','A2-043'
 )
 order by question_code;
