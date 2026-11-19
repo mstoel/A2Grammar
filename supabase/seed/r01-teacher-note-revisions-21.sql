@@ -83,6 +83,7 @@ declare
   rebuilt jsonb;
   d_idx integer;
   i integer;
+  target_idx integer;
 begin
   for rec in
     select * from (values
@@ -127,10 +128,14 @@ begin
 
     rebuilt := '[]'::jsonb;
     d_idx := 0;
+    target_idx := case rec.target_position
+      when 'A' then 1
+      when 'B' then 2
+      when 'C' then 3
+      else 4
+    end;
     for i in 1..4 loop
-      if i = case rec.target_position
-        when 'A' then 1 when 'B' then 2 when 'C' then 3 else 4 end
-      then
+      if i = target_idx then
         rebuilt := rebuilt || jsonb_build_array(jsonb_build_object('label', chr(64+i), 'text', correct_text));
       else
         rebuilt := rebuilt || jsonb_build_array(jsonb_build_object('label', chr(64+i), 'text', distractors->d_idx->>'text'));
