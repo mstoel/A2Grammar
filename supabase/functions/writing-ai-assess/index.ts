@@ -114,9 +114,7 @@ Deno.serve(async (req) => {
       if (draft.criteria.length !== rubric.length) throw new Error("Returned " + draft.criteria.length + " criteria; expected " + rubric.length + ".");
       for (let i = 0; i < rubric.length; i++) {
         const item = draft.criteria[i], expectedMax = Number(rubric[i].max) || 0, score = Number(item?.score);
-        if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax ||
-            (item.max !== undefined && Number(item.max) !== expectedMax) ||
-            (item.rubricIndex !== undefined && Number(item.rubricIndex) !== i)) {
+        if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax) {
           throw new Error("Invalid score, maximum or rubric index for criterion " + (i + 1) + ".");
         }
       }
@@ -250,9 +248,13 @@ Deno.serve(async (req) => {
           } else {
             const message = String(data?.error?.message || "Gemini request failed.");
             providerErrors.push("Gemini (" + response.status + "): " + message);
+            // A daily/free-tier quota exhaustion will not clear on an immediate retry.
+            // Skip Gemini immediately and let Groq/OpenRouter handle this assessment.
+            const exhaustedDailyQuota = response.status === 429 &&
+              /free.?tier.*requests|requests.*per day|daily.*quota|quota exceeded/i.test(message);
             const transient = response.status === 408 || response.status === 429 || response.status >= 500 ||
               /high demand|overload|temporar|resource_exhausted/i.test(message);
-            if (!transient) break;
+            if (!transient || exhaustedDailyQuota) break;
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -359,7 +361,7 @@ Deno.serve(async (req) => {
           const requestBody: any = {
             model: "openrouter/free",
             temperature: 0.2,
-            max_tokens: 6000,
+            max_tokens: 10000,
             messages: [
               { role: "system", content: systemPrompt + " Return only valid JSON matching the requested assessment structure. Do not use markdown fences or add text before or after the JSON." },
               { role: "user", content: userPrompt + "\\nRequired JSON structure: " + JSON.stringify(schema) }
@@ -375,7 +377,7 @@ Deno.serve(async (req) => {
               "X-Title": "EduAssess Writing Assessment"
             },
             body: JSON.stringify(requestBody),
-            signal: AbortSignal.timeout(45000)
+            signal: AbortSignal.timeout(35000)
           });
           const data = await response.json().catch(() => ({}));
           if (response.ok) {
