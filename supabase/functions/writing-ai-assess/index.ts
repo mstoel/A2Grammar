@@ -425,14 +425,8 @@ Deno.serve(async (req) => {
     try {
       draft = parseAssessmentResponse(raw);
       validateAssessmentResponse(draft);
-    } catch {
-        const firstBrace = candidate.indexOf("{");
-        const lastBrace = candidate.lastIndexOf("}");
-        if (firstBrace < 0 || lastBrace <= firstBrace) throw new Error("No complete JSON object found.");
-        draft = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
-      }
-    } catch {
-      const preview = raw.trim().slice(0, 120).replace(/[\r\n]+/g, " ");
+    } catch (error) {
+      const preview = raw.trim().slice(0, 120).replace(/[\\r\\n]+/g, " ");
       return json({
         error: providerUsed + " returned text that was not valid JSON (response length: " + raw.length + "). No rubric scores were changed. " + (preview ? "Response began: " + preview : "The response was empty."),
         retryable: true
