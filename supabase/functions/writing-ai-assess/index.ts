@@ -348,6 +348,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Apply the same full structural validation to Groq before accepting it.
+    if (raw && providerUsed.startsWith("Groq")) validateRawAssessment(providerUsed);
+
     if (!raw && openRouterKey) {
       // Some free routed models return no content when JSON mode is requested.
       // Try JSON mode first, then retry once without it and parse the model's plain JSON response.
