@@ -87,6 +87,54 @@ Deno.serve(async (req) => {
       required: ["criteria", "feedback", "strengths", "improvements", "grammarCorrections", "vocabularySuggestions", "caveats"]
     };
 
+    // Parse model output defensively, including JSON wrapped in prose or Markdown.
+    const parseAssessmentResponse = (text: string): any => {
+      const candidate = String(text || "").trim().replace(/^\uFEFF/, "");
+      const unfenced = candidate.replace(/^\s*\x60{3}(?:json)?\s*/i, "").replace(/\s*\x60{3}\s*$/, "").trim();
+      try { return JSON.parse(unfenced); } catch { /* extract a complete object below */ }
+      const start = unfenced.indexOf("{");
+      if (start < 0) throw new Error("No JSON object found.");
+      let depth = 0, inString = false, escaped = false;
+      for (let i = start; i < unfenced.length; i++) {
+        const ch = unfenced[i];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (ch === "\\") escaped = true;
+          else if (ch === '"') inString = false;
+          continue;
+        }
+        if (ch === '"') inString = true;
+        else if (ch === "{") depth++;
+        else if (ch === "}" && --depth === 0) return JSON.parse(unfenced.slice(start, i + 1));
+      }
+      throw new Error("JSON object is incomplete or truncated.");
+    };
+    const validateAssessmentResponse = (draft: any): void => {
+      if (!draft || typeof draft !== "object" || !Array.isArray(draft.criteria)) throw new Error("Missing criteria array.");
+      if (draft.criteria.length !== rubric.length) throw new Error("Returned " + draft.criteria.length + " criteria; expected " + rubric.length + ".");
+      for (let i = 0; i < rubric.length; i++) {
+        const item = draft.criteria[i], expectedMax = Number(rubric[i].max) || 0, score = Number(item?.score);
+        if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax ||
+            (item.max !== undefined && Number(item.max) !== expectedMax) ||
+            (item.rubricIndex !== undefined && Number(item.rubricIndex) !== i)) {
+          throw new Error("Invalid score, maximum or rubric index for criterion " + (i + 1) + ".");
+        }
+      }
+      if (typeof draft.feedback !== "string") throw new Error("Missing feedback text.");
+      for (const key of ["strengths", "improvements", "grammarCorrections", "vocabularySuggestions"]) {
+        if (draft[key] !== undefined && !Array.isArray(draft[key])) throw new Error("Invalid " + key + " section.");
+      }
+    };
+    const validateRawAssessment = (provider: string): boolean => {
+      try { validateAssessmentResponse(parseAssessmentResponse(raw)); return true; }
+      catch (error) {
+        providerErrors.push(provider + " returned an invalid assessment (" +
+          (error instanceof Error ? error.message : String(error)) + "); trying the next provider.");
+        raw = "";
+        return false;
+      }
+    };
+
     const promptData = {
       assignmentTitle: assignment?.title || "Writing assignment",
       assignmentPrompt: assignment?.prompt || "",
@@ -216,6 +264,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (raw) validateRawAssessment("Gemini");
+
     let providerUsed = "Gemini";
     // Use Groq as the direct-provider fallback before the free-model router.
     if (!raw && groqKey) {
@@ -333,6 +383,8 @@ Deno.serve(async (req) => {
             else if (Array.isArray(content)) raw = content.map((part: any) => typeof part === "string" ? part : String(part?.text || "")).join("").trim();
             if (raw) {
               providerUsed = "OpenRouter free model (" + String(data?.model || "model unknown") + ")";
+              // A non-empty response is not success until it parses and matches the rubric.
+              if (!validateRawAssessment(providerUsed)) continue;
             } else {
               const reason = String(choice?.finish_reason || "unknown");
               const nativeReason = String(choice?.native_finish_reason || "unknown");
@@ -368,12 +420,9 @@ Deno.serve(async (req) => {
 
     let draft: any;
     try {
-      // Accept plain JSON, fenced JSON, or a short preamble followed by a JSON object.
-      let candidate = raw.trim().replace(/^\uFEFF/, "");
-      candidate = candidate.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-      try {
-        draft = JSON.parse(candidate);
-      } catch {
+      draft = parseAssessmentResponse(raw);
+      validateAssessmentResponse(draft);
+    } catch {
         const firstBrace = candidate.indexOf("{");
         const lastBrace = candidate.lastIndexOf("}");
         if (firstBrace < 0 || lastBrace <= firstBrace) throw new Error("No complete JSON object found.");
