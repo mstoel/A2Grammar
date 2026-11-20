@@ -362,8 +362,52 @@ Deno.serve(async (req) => {
                 }
               }
               if (invalidReason) {
-                providerErrors.push("Groq " + invalidReason + "; trying the next provider.");
+                providerErrors.push("Groq " + invalidReason + "; requesting one corrected assessment.");
                 raw = "";
+
+                // Give Groq one targeted correction opportunity when it returns an out-of-range score.
+                // The model must re-evaluate the criterion; scores are never automatically clamped.
+                if (invalidReason.includes("invalid score")) {
+                  try {
+                    const correctionPrompt = userPrompt +
+                      "\\n\\nIMPORTANT CORRECTION REQUIRED: Your previous response was invalid: " + invalidReason +
+                      ". Re-read the teacher's rubric. For every criterion, the maximum is the exact value in rubric[].max. " +
+                      "A score must be between 0 and that maximum, inclusive. In particular, criterion 5 has a maximum of " +
+                      String(Number(rubric[4]?.max) || 0) +
+                      ". Re-assess the evidence for that criterion and return a completely corrected full JSON assessment. " +
+                      "Do not copy an over-maximum score, do not change the teacher's maximum, and do not omit any criterion.";
+                    const retryResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                      method: "POST",
+                      headers: { "Authorization": "Bearer " + groqKey, "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        model: "openai/gpt-oss-20b",
+                        temperature: 0.1,
+                        max_completion_tokens: 6000,
+                        response_format: { type: "json_object" },
+                        messages: [
+                          { role: "system", content: systemPrompt + " STRICT SCORING RULE: each numeric score must be no greater than the corresponding teacher rubric maximum. Return only complete valid JSON." },
+                          { role: "user", content: correctionPrompt + "\\nRequired JSON structure: " + JSON.stringify(schema) }
+                        ]
+                      }),
+                      signal: AbortSignal.timeout(30000)
+                    });
+                    const retryData = await retryResponse.json().catch(() => ({}));
+                    const retryContent = retryData?.choices?.[0]?.message?.content;
+                    const retryRaw = typeof retryContent === "string" ? retryContent.trim() :
+                      Array.isArray(retryContent) ? retryContent.map((part: any) => typeof part === "string" ? part : String(part?.text || "")).join("").trim() : "";
+                    if (retryResponse.ok && retryRaw) {
+                      const corrected = canonicalizeAssessment(parseAssessmentResponse(retryRaw));
+                      validateAssessmentResponse(corrected);
+                      raw = JSON.stringify(corrected);
+                      providerUsed = "Groq corrected retry (" + String(retryData?.model || "openai/gpt-oss-20b") + ")";
+                    } else {
+                      providerErrors.push("Groq correction retry returned no usable text (HTTP " + retryResponse.status + ").");
+                    }
+                  } catch (retryError) {
+                    providerErrors.push("Groq correction retry failed: " +
+                      (retryError instanceof Error ? retryError.message : String(retryError)));
+                  }
+                }
               }
             } catch (validationError) {
               providerErrors.push("Groq returned an unusable assessment (" +
