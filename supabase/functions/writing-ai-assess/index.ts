@@ -379,7 +379,8 @@ Deno.serve(async (req) => {
                       method: "POST",
                       headers: { "Authorization": "Bearer " + groqKey, "Content-Type": "application/json" },
                       body: JSON.stringify({
-                        model: "openai/gpt-oss-20b",
+                        // Use the larger Groq model for the correction pass to reduce repeated rubric-boundary errors.
+                        model: "openai/gpt-oss-120b",
                         temperature: 0.1,
                         max_completion_tokens: 6000,
                         response_format: { type: "json_object" },
@@ -400,7 +401,10 @@ Deno.serve(async (req) => {
                       raw = JSON.stringify(corrected);
                       providerUsed = "Groq corrected retry (" + String(retryData?.model || "openai/gpt-oss-20b") + ")";
                     } else {
-                      providerErrors.push("Groq correction retry returned no usable text (HTTP " + retryResponse.status + ").");
+                      const retryErrorBody = await retryResponse.clone().json().catch(() => ({}));
+                      providerErrors.push("Groq GPT-OSS 120B correction retry returned no usable text (HTTP " +
+                        retryResponse.status + "): " + String(retryErrorBody?.error?.message || "no provider detail") +
+                        (retryResponse.headers.get("retry-after") ? "; retry after " + retryResponse.headers.get("retry-after") + " seconds" : "") + ".");
                     }
                   } catch (retryError) {
                     providerErrors.push("Groq correction retry failed: " +
