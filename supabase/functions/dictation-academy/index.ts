@@ -51,8 +51,16 @@ for (const [us, uk] of SPELLING_PAIRS) {
   SPELLING_EQUIVALENTS[us] = uk;
   SPELLING_EQUIVALENTS[uk] = uk;
 }
+// Normalise harmless input differences before grading dictation answers.
+// Keep word boundaries meaningful: repeated spaces become one space, but spaces
+// are NOT removed, so "speedlimit" still does not match "speed limit".
 const normalize = (value: unknown) => {
-  const answer = String(value ?? "").trim().normalize("NFC").toLocaleLowerCase("en");
+  const answer = String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/[\s\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]+/g, " ")
+    .trim()
+    .toLocaleLowerCase("en");
   return SPELLING_EQUIVALENTS[answer] || answer;
 };
 
