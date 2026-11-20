@@ -109,6 +109,38 @@ Deno.serve(async (req) => {
       }
       throw new Error("JSON object is incomplete or truncated.");
     };
+    const normalizeCriterion = (value: unknown) => String(value || "").toLowerCase()
+      .replace(/organisation/g, "organization").replace(/[^a-z0-9]+/g, " ").trim();
+
+    // Reconcile model output to the teacher's saved rubric before validating.
+    // Names are matched first; positional matching is used only when the counts agree.
+    // Scores are never scaled or clamped: an out-of-range score remains a hard failure.
+    const canonicalizeAssessment = (draft: any): any => {
+      if (!draft || typeof draft !== "object" || !Array.isArray(draft.criteria)) return draft;
+      const returned = draft.criteria;
+      const used = new Set<number>();
+      const criteria = rubric.map((teacherCriterion: any, index: number) => {
+        const expectedName = normalizeCriterion(teacherCriterion.name);
+        let match = returned.findIndex((item: any, i: number) =>
+          !used.has(i) && normalizeCriterion(item?.name) === expectedName
+        );
+        if (match < 0 && returned.length === rubric.length && !used.has(index)) match = index;
+        if (match < 0) {
+          const words = expectedName.split(" ").filter((word: string) => word.length > 3);
+          match = returned.findIndex((item: any, i: number) => {
+            if (used.has(i)) return false;
+            const candidate = normalizeCriterion(item?.name);
+            return words.length > 0 && words.filter((word: string) => candidate.includes(word)).length >= Math.min(2, words.length);
+          });
+        }
+        if (match < 0) return null;
+        used.add(match);
+        const item = returned[match];
+        return { ...item, name: String(teacherCriterion.name), max: Number(teacherCriterion.max) || 0, rubricIndex: index };
+      });
+      return { ...draft, criteria };
+    };
+
     const validateAssessmentResponse = (draft: any): void => {
       if (!draft || typeof draft !== "object" || !Array.isArray(draft.criteria)) throw new Error("Missing criteria array.");
       if (draft.criteria.length !== rubric.length) throw new Error("Returned " + draft.criteria.length + " criteria; expected " + rubric.length + ".");
@@ -124,7 +156,7 @@ Deno.serve(async (req) => {
       }
     };
     const validateRawAssessment = (provider: string): boolean => {
-      try { validateAssessmentResponse(parseAssessmentResponse(raw)); return true; }
+      try { validateAssessmentResponse(canonicalizeAssessment(parseAssessmentResponse(raw))); return true; }
       catch (error) {
         providerErrors.push(provider + " returned an invalid assessment (" +
           (error instanceof Error ? error.message : String(error)) + "); trying the next provider.");
@@ -311,6 +343,7 @@ Deno.serve(async (req) => {
                 if (firstBrace < 0 || lastBrace <= firstBrace) throw new Error("No complete JSON object found.");
                 parsed = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
               }
+              parsed = canonicalizeAssessment(parsed);
               const returned = Array.isArray(parsed?.criteria) ? parsed.criteria : [];
               let invalidReason = "";
               if (returned.length !== rubric.length) {
@@ -321,10 +354,9 @@ Deno.serve(async (req) => {
                   const expectedMax = Number(rubric[i].max) || 0;
                   const score = Number(item?.score);
                   const max = Number(item?.max);
-                  if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax ||
-                      (Number.isFinite(max) && max !== expectedMax) ||
-                      (item.rubricIndex !== undefined && Number(item.rubricIndex) !== i)) {
-                    invalidReason = "invalid score or maximum for rubric criterion " + (i + 1);
+                  if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax) {
+                    invalidReason = "invalid score for rubric criterion " + (i + 1) +
+                      " (returned score: " + String(item?.score) + ", teacher maximum: " + expectedMax + ")";
                     break;
                   }
                 }
@@ -425,7 +457,7 @@ Deno.serve(async (req) => {
 
     let draft: any;
     try {
-      draft = parseAssessmentResponse(raw);
+      draft = canonicalizeAssessment(parseAssessmentResponse(raw));
       validateAssessmentResponse(draft);
     } catch (error) {
       const preview = raw.trim().slice(0, 120).replace(/[\\r\\n]+/g, " ");
@@ -443,14 +475,12 @@ Deno.serve(async (req) => {
       const expectedMax = Number(rubric[i].max) || 0;
       const score = Number(item?.score);
       const max = Number(item?.max);
-      if (!item || (item.rubricIndex !== undefined && Number(item.rubricIndex) !== i) ||
-          !Number.isFinite(score) || score < 0 || score > expectedMax ||
-          (Number.isFinite(max) && max !== expectedMax)) {
-        return json({ error: providerUsed + " returned invalid scores for rubric criterion " + (i + 1) + ". No rubric scores were changed.", retryable: true }, 502);
+      if (!item || !Number.isFinite(score) || score < 0 || score > expectedMax) {
+        return json({ error: providerUsed + " returned an invalid score for rubric criterion " + (i + 1) +
+          " (score: " + String(item?.score) + ", teacher maximum: " + expectedMax +
+          "). No rubric scores were changed.", retryable: true }, 502);
       }
     }
-    const normalizeCriterion = (value: unknown) => String(value || "").toLowerCase()
-      .replace(/organisation/g, "organization").replace(/[^a-z0-9]+/g, " ").trim();
     const returnedCriteria = Array.isArray(draft.criteria) ? draft.criteria : [];
     const used = new Set<number>();
     const criteria = rubric.map((cr: any, index: number) => {
