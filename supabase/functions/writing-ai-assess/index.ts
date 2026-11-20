@@ -371,10 +371,9 @@ Deno.serve(async (req) => {
                   try {
                     const correctionPrompt = userPrompt +
                       "\\n\\nIMPORTANT CORRECTION REQUIRED: Your previous response was invalid: " + invalidReason +
-                      ". Re-read the teacher's rubric. For every criterion, the maximum is the exact value in rubric[].max. " +
-                      "A score must be between 0 and that maximum, inclusive. In particular, criterion 5 has a maximum of " +
-                      String(Number(rubric[4]?.max) || 0) +
-                      ". Re-assess the evidence for that criterion and return a completely corrected full JSON assessment. " +
+                      ". Re-read the teacher's rubric. The exact criterion names and maximums are: " +
+                      JSON.stringify(rubric.map((criterion: any, index: number) => ({ index: index + 1, name: criterion.name, maximum: Number(criterion.max) || 0 }))) +
+                      ". Every score must be between 0 and its corresponding maximum, inclusive. Re-assess the evidence for the invalid criterion and return a completely corrected full JSON assessment. " +
                       "Do not copy an over-maximum score, do not change the teacher's maximum, and do not omit any criterion.";
                     const retryResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                       method: "POST",
