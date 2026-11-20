@@ -456,11 +456,12 @@ Deno.serve(async (req) => {
     const criteria = rubric.map((cr: any, index: number) => {
       const max = Number(cr.max) || 0;
       const targetName = normalizeCriterion(cr.name);
+      // Match the teacher's criterion name first; model-supplied indices can be wrong.
       let foundIndex = returnedCriteria.findIndex((item: any, i: number) =>
-        !used.has(i) && Number(item.rubricIndex) === index
+        !used.has(i) && normalizeCriterion(item.name) === targetName
       );
       if (foundIndex < 0) foundIndex = returnedCriteria.findIndex((item: any, i: number) =>
-        !used.has(i) && normalizeCriterion(item.name) === targetName
+        !used.has(i) && Number(item.rubricIndex) === index
       );
       if (foundIndex < 0) {
         const targetWords = targetName.split(" ").filter((word: string) => word.length > 3);
