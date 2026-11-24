@@ -272,6 +272,53 @@ $('loadAesopM1').onclick=()=>loadAesopPreset('A2','M1');
 $('loadAesopM2').onclick=()=>loadAesopPreset('A2+','M2');
 $('loadAesopM3').onclick=()=>loadAesopPreset('B1','M3');
 
+
+function loadSportDayPreset(level,classCode){
+ const minWords=classCode==='M1'?150:200;
+ const rubric=[
+  {name:'Draft Completion',max:20,description:'A complete, organised handwritten draft was submitted on time and shows planning and preparation. Award full points for a complete handwritten draft. Assess completion and preparation only, not grammar or spelling.'},
+  {name:'Future Tense Grammar',max:30,description:'Assesses accurate and meaningful use of the three required future forms in context. Will (7 points): predictions, expectations, promises, offers or spontaneous decisions. Be going to (7 points): prior plans, intentions and predictions based on present evidence. Present continuous with future meaning (7 points): fixed arrangements, often with a stated time or place. Overall grammar accuracy and control (6 points): correct forms, auxiliaries, word order, negatives, questions and agreement throughout the essay. Additional future structures (3 points): reward accurate, appropriate use of forms such as future continuous or future perfect. The three required forms must each appear correctly at least once for full credit in their respective parts. Score grammar only here; do not deduct the same language error in other criteria.'},
+  {name:'Length Requirement',max:10,description:'Minimum word count: M1 150 words; M2 and M3 200 words. Award points proportionally when below the required minimum. Assess word count only in this criterion.'},
+  {name:'Flow & Organisation',max:20,description:'Ideas are presented in a clear, logical sequence with an engaging introduction, developed body paragraphs and a meaningful conclusion. Expectations, plans and event arrangements are connected smoothly with appropriate paragraphing and transitions.'},
+  {name:'Vocabulary & Expression',max:20,description:'Uses varied, precise and appropriate vocabulary related to Sport Day, sports, competitions, teams, preparation, feelings and expectations. Expression is clear and engaging, with vocabulary appropriate to the target CEFR level. Judge word choice and range, not grammatical accuracy.'}
+ ];
+ const prompt="Sport Day is coming soon at Holy Mary Udonthani School! Write a well-developed essay about how you expect Sport Day to be. Describe what you think will happen, what activities and competitions are planned, which sports you are going to participate in, how you and your team are preparing, and how you expect the day to go. Include your own expectations, plans, arrangements and feelings. Your essay must clearly demonstrate the three required future forms: will, be going to, and the present continuous used to talk about fixed future arrangements.";
+ const instructions='Write an essay about your expectations, plans and preparations for the upcoming Sport Day at Holy Mary Udonthani School. Minimum '+minWords+' words for '+classCode+' (CEFR '+level+'). Include an introduction, organised body paragraphs and a conclusion. Explain what you expect to happen, which activities or competitions are planned, what you personally plan to do, how you are preparing, and how you think the day will go. REQUIRED GRAMMAR: Use WILL at least once correctly for a prediction, expectation, promise, offer or spontaneous decision; use BE GOING TO at least once correctly for a prior plan or intention; and use the PRESENT CONTINUOUS at least once correctly with future meaning for a fixed arrangement (ideally with a time or place). Make the meaning of each form clear from the context. Other future forms, such as future continuous (will be playing) or future perfect (will have finished), are welcome but optional. Handwritten draft required.';
+ const aiInstructions="Assess this Sport Day essay strictly against the five rubric criteria and their exact maximum points. GRAMMAR IS A MAJOR PRIORITY: Future Tense Grammar is worth 30/100 and must be assessed carefully with specific sentence evidence. Required forms: (1) WILL, 7 points — correct form and appropriate use for a prediction, expectation, promise, offer or spontaneous decision; (2) BE GOING TO, 7 points — correct construction (am/is/are + going to + base verb) and appropriate use for a prior plan/intention or evidence-based prediction; (3) PRESENT CONTINUOUS with future meaning, 7 points — correct am/is/are + verb-ing form and context showing a fixed future arrangement, preferably with a future time/place; (4) Overall grammar accuracy, 6 points — accuracy of tense formation, auxiliaries, agreement, word order, sentence construction and consistency across the essay; (5) Additional future forms, 3 points — optional bonus within the 30-point grammar criterion for correct and contextually appropriate use of other future forms, such as future continuous or future perfect. Do not give full points for a required form if it is merely copied, used incorrectly, or does not express the intended future meaning. A form used correctly at least once can earn its core points, but consider consistency and variety when assigning the score. Do not require students to use other future forms. M1 minimum 150 words; M2 and M3 minimum 200 words. Assess word count only under Length Requirement. Draft Completion is based only on whether a complete, organised handwritten draft was submitted on time; do not assess grammar or spelling there. Flow & Organisation assesses introduction, paragraph development, logical order, transitions and conclusion. Vocabulary & Expression assesses range, precision, appropriacy and Sport Day-related vocabulary, not grammar. Do not deduct the same error twice. Do not require details that are not supplied by the student; assess their own plausible expectations and plans. Do not invent facts about the school's actual Sport Day schedule. Award evidence-based scores, quote or identify the student's actual sentences when explaining each future-tense judgment, and give actionable feedback. Use the full meaningful score range; do not impose a class ranking or forced distribution. Keep AI feedback as a draft for teacher approval.";
+ $('title').value='Term 2 – Week 5: Sport Day ('+classCode+')';
+ $('genre').value='Descriptive';$('cefr').value=level;$('min').value=String(minWords);$('max').value='0';
+ $('writingConditions').value='timed_classroom';$('timeAllowed').value='40';$('due').value='';$('pub').value='draft';$('openTest').checked=false;
+ $('prompt').value=prompt;$('instructions').value=instructions;$('rubric').value=JSON.stringify(rubric,null,2);$('aiInstructions').value=aiInstructions;
+ document.querySelectorAll('input[name="classTarget"]').forEach(x=>x.checked=false);
+ const target=classes.find(c=>new RegExp('(^|[^A-Z0-9])'+classCode+'([^A-Z0-9]|$)','i').test(c.name));
+ if(target){const box=document.querySelector('input[name="classTarget"][value="'+target.id+'"]');if(box)box.checked=true;}
+ updateClassTargetHint();
+ $('sportPresetStatus').textContent=target?'Loaded '+classCode+' · '+level+' · '+minWords+' words and selected "'+target.name+'". Save as a draft; repeat for the other classes.':'Loaded '+classCode+' · '+level+' · '+minWords+' words. Select the correct class below, then save as a draft.';
+ $('rubricPanel').open=true;$('aiPanel').open=true;
+ $('createSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('loadSportM1').onclick=()=>loadSportDayPreset('A2','M1');
+$('loadSportM2').onclick=()=>loadSportDayPreset('A2+','M2');
+$('loadSportM3').onclick=()=>loadSportDayPreset('B1','M3');
+$('createAllSportDrafts').onclick=async()=>{
+ const button=$('createAllSportDrafts');
+ if(!activeSchool){say('Choose a school before creating the Week 5 drafts.');return;}
+ const missing=['M1','M2','M3'].filter(code=>!classes.some(c=>new RegExp('(^|[^A-Z0-9])'+code+'([^A-Z0-9]|$)','i').test(c.name)));
+ if(missing.length){say('Could not find these classes in the selected school: '+missing.join(', ')+'.');return;}
+ if(!confirm('Create three separate Week 5 Sport Day draft assignments for M1, M2 and M3? Nothing will be published yet.'))return;
+ button.disabled=true;
+ try{
+  for(const [level,classCode] of [['A2','M1'],['A2+','M2'],['B1','M3']]){
+   loadSportDayPreset(level,classCode);
+   $('pub').value='draft';
+   await saveAssignment();
+  }
+  say('Week 5 Sport Day drafts created for M1, M2 and M3. Open Assignments to review and publish each class task.');
+  document.querySelector('[data-nav="assignmentsSection"]').click();
+ }catch(error){say('Week 5 creation stopped: '+(error instanceof Error?error.message:String(error)));}
+ finally{button.disabled=false;}
+};
+
 function loadLoyKrathongPreset(level,classCode){
  const minWords=classCode==='M1'?150:200;
  const rubric=[
@@ -319,6 +366,9 @@ $('createAllLoyDrafts').onclick=async()=>{
  }catch(error){say('Week 4 creation stopped: '+(error instanceof Error?error.message:String(error)));}
  finally{button.disabled=false;}
 };
+
+<details class="item preset-archive" style="margin:8px 0;background:#f0fdfa;border-color:#99f6e4"><summary><strong>Term 2 – Week 5: Sport Day</strong> <span class="muted">· Reuse preset</span></summary><div class="preset-archive-body"><p class="muted">Create the Sport Day writing assignment for M1, M2 and M3. Students write about expectations, plans and preparations for Sport Day. Future-tense grammar is a major focus: all three required forms — will, be going to, and present continuous with future meaning — must each be used correctly at least once.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="loadSportM1">Load M1 · A2 · 150 words</button><button type="button" id="loadSportM2">Load M2 · A2+ · 200 words</button><button type="button" id="loadSportM3">Load M3 · B1 · 200 words</button></div><p id="sportPresetStatus" class="muted" aria-live="polite">Choose a class preset to load the essay, rubric and AI instructions.</p><button type="button" id="createAllSportDrafts" style="background:#0f766e;margin-top:8px">Create Week 5 drafts for M1, M2 and M3</button><p class="muted">This creates three separate draft assignments with the correct class, CEFR level, word count, shared rubric and future-tense marking instructions. Nothing is published automatically.</p></div></details>
+
 $('openTest').addEventListener('change',updateClassTargetHint);
 $('save').onclick=async()=>{
  const button=$('save'),original=button.textContent;
